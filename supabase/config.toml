@@ -1,0 +1,9 @@
+project_id = "bok-stance-pilot-site"
+
+[api]
+enabled = false
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+
+[functions.pilot-api]
+verify_jwt = false

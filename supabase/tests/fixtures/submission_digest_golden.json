@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "consent_version": "동의-v1",
+  "now_for_validation": "2026-09-03T00:11:00.000Z",
+  "identity": {
+    "name": "  테스트 참가자  ",
+    "phone": "+82 10-1234-5678"
+  },
+  "raw_digest_input": {
+    "instrument_sha256": "4a07da2785bb2228787f2dd4e57339bd5c132111d693681a12cb62baf64978e7",
+    "consent": {
+      "accepted": true,
+      "version": "  동의-v1  ",
+      "accepted_at": " 2026-09-03T08:59:00+09:00 "
+    },
+    "session": {
+      "started_at": " 2026-09-03T09:00:00+09:00 ",
+      "finished_at": "2026-09-03T09:10:00+09:00",
+      "active_duration_seconds": 60
+    },
+    "responses": [
+      {"display_position": 12, "pilot_item_id": " USP_012 ", "choice": 0, "reason_code": "NONE", "confidence": 3, "started_at": "2026-09-03T09:01:00+09:00", "finished_at": "2026-09-03T09:01:10+09:00", "active_duration_seconds": 4},
+      {"display_position": 11, "pilot_item_id": " USP_011 ", "choice": 0, "reason_code": "NONE", "confidence": 3, "started_at": "2026-09-03T09:01:00+09:00", "finished_at": "2026-09-03T09:01:10+09:00", "active_duration_seconds": 4},
+      {"display_position": 10, "pilot_item_id": " USP_010 ", "choice": 0, "reason_code": "NONE", "confidence": 3, "started_at": "2026-09-03T09:01:00+09:00", "finished_at": "2026-09-03T09:01:10+09:00", "active_duration_seconds": 4},
+      {"display_position": 9, "pilot_item_id": " USP_009 ", "choice": 0, "reason_code": "NONE", "confidence": 3, "started_at": "2026-09-03T09:01:00+09:00", "finished_at": "2026-09-03T09:01:10+09:00", "active_duration_seconds": 4},
+      {"display_position": 8, "pilot_item_id": " USP_008 ", "choice": 0, "reason_code": "NONE", "confidence": 3, "started_at": "2026-09-03T09:01:00+09:00", "finished_at": "2026-09-03T09:01:10+09:00", "active_duration_seconds": 4},
+      {"display_position": 7, "pilot_item_id": " USP_007 ", "choice": 0, "reason_code": "NONE", "confidence": 3, "started_at": "2026-09-03T09:01:00+09:00", "finished_at": "2026-09-03T09:01:10+09:00", "active_duration_seconds": 4},
+      {"display_position": 6, "pilot_item_id": " USP_006 ", "choice": 0, "reason_code": "NONE", "confidence": 3, "started_at": "2026-09-03T09:01:00+09:00", "finished_at": "2026-09-03T09:01:10+09:00", "active_duration_seconds": 4},
+      {"display_position": 5, "pilot_item_id": " USP_005 ", "choice": 0, "reason_code": "NONE", "confidence": 3, "started_at": "2026-09-03T09:01:00+09:00", "finished_at": "2026-09-03T09:01:10+09:00", "active_duration_seconds": 4},
+      {"display_position": 4, "pilot_item_id": " USP_004 ", "choice": 0, "reason_code": "NONE", "confidence": 3, "started_at": "2026-09-03T09:01:00+09:00", "finished_at": "2026-09-03T09:01:10+09:00", "active_duration_seconds": 4},
+      {"display_position": 3, "pilot_item_id": " USP_003 ", "choice": 0, "reason_code": "NONE", "confidence": 3, "started_at": "2026-09-03T09:01:00+09:00", "finished_at": "2026-09-03T09:01:10+09:00", "active_duration_seconds": 4},
+      {"display_position": 2, "pilot_item_id": " USP_002 ", "choice": 0, "reason_code": "OTHER", "confidence": 4, "reason_note": "  café  ", "started_at": "2026-09-03T09:01:00+09:00", "finished_at": "2026-09-03T09:01:10+09:00", "active_duration_seconds": 4},
+      {"display_position": 1, "pilot_item_id": " USP_001 ", "choice": 99, "reason_code": "CONTEXT_NEEDED", "confidence": 2, "started_at": "2026-09-03T09:01:00+09:00", "finished_at": "2026-09-03T09:01:10+09:00", "active_duration_seconds": 4}
+    ],
+    "feedback": {
+      "fatigue_1to5": 2,
+      "zero_vs_99_explanation": "  0과 99 구분: café  ",
+      "change_vs_stance_explanation": "  변화와 기조를 구분함  "
+    }
+  },
+  "expected": {
+    "consent_version": "동의-v1",
+    "consent_accepted_at": "2026-09-02T23:59:00.000Z",
+    "session_started_at": "2026-09-03T00:00:00.000Z",
+    "session_finished_at": "2026-09-03T00:10:00.000Z",
+    "response_positions": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    "first_item_id": "USP_001",
+    "first_reason_note": "",
+    "second_reason_note": "café",
+    "zero_vs_99_explanation": "0과 99 구분: café",
+    "ui_error_note": "",
+    "payload_sha256": "b80df8b779cc47a9d259cd25fe8b205ff9edeb1bc2da6f2de74d5d7ef80f3265"
+  }
+}

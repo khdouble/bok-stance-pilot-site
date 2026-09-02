@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://mebisrsvasrzwkmsodsw.supabase.co; img-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests">
+  <title>통화정책 문장 평가 파일럿</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">Synthetic usability pilot</p>
+      <h1>통화정책 문장 평가</h1>
+      <p>사전에 연락받은 참가자를 위한 12문항 사용성 점검입니다.</p>
+    </header>
+
+    <div id="globalStatus" class="status info" role="status" aria-live="polite">
+      설문을 준비하고 있습니다.
+    </div>
+    <div class="draft-tools">
+      <button id="clearDraft" type="button" class="secondary" hidden>
+        이 기기의 임시저장 삭제
+      </button>
+    </div>
+
+    <section id="blockedPanel" class="card" hidden>
+      <h2>현재 배포 준비 중입니다</h2>
+      <p id="blockedMessage">
+        개인정보 안내와 서버 점검이 완료된 뒤 설문이 열립니다.
+      </p>
+    </section>
+
+    <section id="invitePanel" class="card" hidden>
+      <h2>초대 확인</h2>
+      <p>
+        이 설문은 사전에 지정된 참가자만 사용할 수 있습니다. 전달받은 개인별
+        초대 링크로 접속해 주세요.
+      </p>
+      <label for="inviteCode">초대 코드</label>
+      <input id="inviteCode" type="password" inputmode="text"
+             autocomplete="off" spellcheck="false" minlength="43" maxlength="43">
+      <p class="hint">
+        링크로 접속했다면 코드는 자동으로 확인됩니다. 초대 코드는 서버
+        데이터베이스나 브라우저 저장소에 원문으로 남기지 않으므로 새로고침하면
+        원래 링크로 다시 접속해야 합니다.
+      </p>
+      <button id="verifyInvite" type="button" class="primary">초대 확인</button>
+    </section>
+
+    <section id="identityPanel" class="card" hidden>
+      <h2>참여 안내와 참가자 구별</h2>
+      <div class="notice">
+        <p>
+          성명과 휴대전화번호는 사전에 지정된 참가자를 응답자료에서 구별하고
+          제출자료를 확인하는 데만 사용하며, 문항응답과 분리해 보관합니다.
+        </p>
+        <p>
+          수집 항목, 보유기간, 담당자와 철회 방법은
+          <a href="privacy.html" target="_blank" rel="noopener">개인정보 안내</a>에서
+          확인할 수 있습니다.
+        </p>
+        <p>
+          이 파일럿은 합성문장 UI 점검이며 연구의 성능분석 자료에는 포함되지
+          않습니다. 이름이나 전화번호를 문항 메모에 다시 적지 마세요.
+        </p>
+        <p>
+          미완료 응답은 이름·전화번호 없이 이 기기에 저장되며 7일 동안만
+          복원됩니다. 7일이 지난 자료는 다음 설문 접속 시 삭제되고, 위의
+          ‘임시저장 삭제’ 버튼으로 즉시 지울 수 있습니다. 공용 기기는
+          사용하지 마세요.
+        </p>
+      </div>
+
+      <div class="form-grid">
+        <div>
+          <label for="participantName">성명</label>
+          <input id="participantName" type="text" autocomplete="off"
+                 maxlength="80" required>
+        </div>
+        <div>
+          <label for="participantPhone">휴대전화번호</label>
+          <input id="participantPhone" type="tel" inputmode="tel"
+                 autocomplete="off" maxlength="20"
+                 placeholder="010-0000-0000" required>
+        </div>
+      </div>
+
+      <label class="check-row">
+        <input id="consentAccepted" type="checkbox">
+        <span>
+          개인정보 수집·이용 목적, 수집 항목, 보유기간, 동의 거부권을
+          확인했고 이에 동의합니다.
+        </span>
+      </label>
+      <button id="beginSurvey" type="button" class="primary">평가 시작</button>
+    </section>
+
+    <section id="surveyPanel" class="card" hidden>
+      <div class="progress-row">
+        <strong id="progressText">문항 1 / 12</strong>
+        <div class="progress-track" aria-hidden="true">
+          <div id="progressBar" class="progress-bar"></div>
+        </div>
+      </div>
+
+      <article class="item-box">
+        <p class="eyebrow">평가할 문장</p>
+        <p id="sentenceText" class="sentence"></p>
+      </article>
+
+      <fieldset>
+        <legend>이 문장이 나타내는 통화정책 기조를 선택해 주세요.</legend>
+        <div id="stanceChoices" class="choice-grid"></div>
+      </fieldset>
+
+      <div class="form-grid">
+        <div>
+          <label for="confidence">확신도</label>
+          <select id="confidence">
+            <option value="">선택</option>
+            <option value="1">1 매우 낮음</option>
+            <option value="2">2 낮음</option>
+            <option value="3">3 보통</option>
+            <option value="4">4 높음</option>
+            <option value="5">5 매우 높음</option>
+          </select>
+        </div>
+        <div>
+          <label for="reasonCode">이유 코드</label>
+          <select id="reasonCode">
+            <option value="">선택하지 않음</option>
+            <option value="NONE">NONE</option>
+            <option value="IRRELEVANT">IRRELEVANT</option>
+            <option value="CONTEXT_NEEDED">CONTEXT_NEEDED</option>
+            <option value="MIXED_UNRESOLVED">MIXED_UNRESOLVED</option>
+            <option value="TERMINOLOGY">TERMINOLOGY</option>
+            <option value="OTHER">OTHER</option>
+          </select>
+        </div>
+      </div>
+
+      <label for="reasonNote">이유 메모</label>
+      <textarea id="reasonNote" rows="3" maxlength="600"
+                placeholder="OTHER를 선택한 경우에만 간단히 적어 주세요. 개인정보는 적지 마세요."></textarea>
+
+      <p id="itemError" class="error-text" role="alert"></p>
+      <div class="actions">
+        <button id="previousItem" type="button" class="secondary">이전</button>
+        <button id="nextItem" type="button" class="primary">다음</button>
+      </div>
+    </section>
+
+    <section id="feedbackPanel" class="card" hidden>
+      <h2>사용성 피드백</h2>
+
+      <label for="fatigue">전체 피로도</label>
+      <select id="fatigue">
+        <option value="">선택</option>
+        <option value="1">1 매우 낮음</option>
+        <option value="2">2 낮음</option>
+        <option value="3">3 보통</option>
+        <option value="4">4 높음</option>
+        <option value="5">5 매우 높음</option>
+      </select>
+
+      <label for="zeroVs99">0과 99를 어떤 기준으로 구분했습니까?</label>
+      <textarea id="zeroVs99" rows="4" maxlength="1200"></textarea>
+
+      <label for="changeVsStance">
+        추가 정책변화와 현재 기조 유지를 어떤 기준으로 구분했습니까?
+      </label>
+      <textarea id="changeVsStance" rows="4" maxlength="1200"></textarea>
+
+      <label for="uiError">불편하거나 작동하지 않은 부분이 있었습니까?</label>
+      <textarea id="uiError" rows="3" maxlength="1200"
+                placeholder="없으면 비워 두어도 됩니다. 개인정보는 적지 마세요."></textarea>
+
+      <p id="feedbackError" class="error-text" role="alert"></p>
+      <div class="actions">
+        <button id="backToItems" type="button" class="secondary">문항으로 돌아가기</button>
+        <button id="reviewSurvey" type="button" class="primary">제출 전 확인</button>
+      </div>
+    </section>
+
+    <section id="reviewPanel" class="card" hidden>
+      <h2>제출 전 확인</h2>
+      <p>
+        12문항과 피드백이 모두 입력되었습니다. 제출 후에는 수정할 수 없습니다.
+        이름과 전화번호는 응답과 분리해 저장됩니다.
+      </p>
+      <dl class="summary">
+        <div><dt>참가자 코드</dt><dd id="reviewRater"></dd></div>
+        <div><dt>완료 문항</dt><dd id="reviewCount"></dd></div>
+        <div><dt>Instrument</dt><dd id="reviewInstrument" class="mono"></dd></div>
+      </dl>
+      <p id="submitError" class="error-text" role="alert"></p>
+      <div class="actions">
+        <button id="editFeedback" type="button" class="secondary">수정</button>
+        <button id="submitSurvey" type="button" class="primary">최종 제출</button>
+      </div>
+      <div id="fallbackArea" class="fallback" hidden>
+        <p>
+          서버 제출이 계속 실패하면 개인정보가 포함되지 않은 비상 회수 파일을
+          저장해 연구책임자에게 전달할 수 있습니다.
+        </p>
+        <button id="downloadResponses" type="button" class="secondary">응답 CSV 저장</button>
+        <button id="downloadFeedback" type="button" class="secondary">피드백 CSV 저장</button>
+      </div>
+    </section>
+
+    <section id="donePanel" class="card success-card" hidden>
+      <h2>제출이 완료되었습니다</h2>
+      <p>참여해 주셔서 감사합니다. 이 창을 닫아도 됩니다.</p>
+      <p>접수번호: <strong id="receiptId" class="mono"></strong></p>
+    </section>
+
+    <noscript>
+      <section class="card">
+        이 설문은 JavaScript가 필요합니다. 브라우저에서 JavaScript를 허용해 주세요.
+      </section>
+    </noscript>
+  </main>
+
+  <script src="site-config.js"></script>
+  <script src="instrument-hash.js"></script>
+  <script src="submission-contract.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

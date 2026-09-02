@@ -1,0 +1,26 @@
+-- TEMPLATE ONLY: do not execute this file as-is.
+-- The release builder must replace all markers, place the result in migrations/, and
+-- make the insert transaction immutable. No invite tokens or direct identifiers belong here.
+--
+-- Public release constants:
+--   instrument_version: v260903-pilot-hosted-1
+--   source_offline_sha256: b594a196eb7be720e57d974f4b5c6e4437b697e6ae20f01013e830af35707a51
+--   instrument_sha256: __PILOT_INSTRUMENT_SHA256__
+--
+-- Required insert order and columns:
+--   research.pilot_instruments (
+--     instrument_sha256, instrument_version, source_offline_sha256,
+--     expected_response_count, is_active, fielding_open, activated_at
+--   )
+--   research.pilot_items (instrument_sha256, pilot_item_id, sentence_text)
+--   research.pilot_assignment_sets (
+--     instrument_sha256, assignment_code, expected_item_count
+--   )
+--   research.pilot_assignments (
+--     instrument_sha256, assignment_code, display_position, pilot_item_id, assignment_id
+--   )
+--
+-- Every assignment_code must have exactly 12 unique display positions (1 through 12)
+-- and exactly 12 unique pilot_item_id values. Activate the instrument only after those
+-- invariants have been verified inside the same transaction. Leave fielding_open=false;
+-- it is a separate PI-controlled gate that is opened only after final clearance.

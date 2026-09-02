@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+# Accidental-commit backstop only; admin tools forbid operational data here.
+.private/
+supabase/.temp/
+supabase/.branches/
+responses/
+exports/
+*.log
+__pycache__/
+*.pyc
+.DS_Store

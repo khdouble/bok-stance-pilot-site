@@ -1,0 +1,500 @@
+{
+  "instrument_sha256": "4a07da2785bb2228787f2dd4e57339bd5c132111d693681a12cb62baf64978e7",
+  "schema_version": "1.0",
+  "hosted_version": "v260903-pilot-hosted-1",
+  "source_offline_instrument_sha256": "b594a196eb7be720e57d974f4b5c6e4437b697e6ae20f01013e830af35707a51",
+  "dataset_role": "synthetic_usability_pilot",
+  "excluded_from_analysis": true,
+  "analysis_exclusion_reason": "synthetic_usability_only_never_analysis",
+  "items_per_participant": 12,
+  "stance_choices": [
+    {
+      "value": -2,
+      "label": "-2 명시적 완화 조치"
+    },
+    {
+      "value": -1,
+      "label": "-1 완화 기조·편향"
+    },
+    {
+      "value": 0,
+      "label": "0 중립·상쇄·균형"
+    },
+    {
+      "value": 1,
+      "label": "+1 긴축 기조·편향"
+    },
+    {
+      "value": 2,
+      "label": "+2 명시적 긴축 조치"
+    },
+    {
+      "value": 99,
+      "label": "99 판단불가·정보부족"
+    }
+  ],
+  "reason_codes": [
+    "NONE",
+    "IRRELEVANT",
+    "CONTEXT_NEEDED",
+    "MIXED_UNRESOLVED",
+    "TERMINOLOGY",
+    "OTHER"
+  ],
+  "confidence_values": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "assignments": {
+    "PILOT_R01": [
+      {
+        "assignment_id": "USPILOT_R01_01",
+        "pilot_rater_id": "PILOT_R01",
+        "display_position": 1,
+        "pilot_item_id": "USP_011",
+        "sentence_text": "기조적 물가가 충분히 안정되기 전까지 제약적인 금융 여건을 그대로 유지하는 것이 바람직하다."
+      },
+      {
+        "assignment_id": "USPILOT_R01_02",
+        "pilot_rater_id": "PILOT_R01",
+        "display_position": 2,
+        "pilot_item_id": "USP_010",
+        "sentence_text": "경기 대응을 위해 금리 인상과 금리 인하를 모두 즉시 시행할 필요가 있다."
+      },
+      {
+        "assignment_id": "USPILOT_R01_03",
+        "pilot_rater_id": "PILOT_R01",
+        "display_position": 3,
+        "pilot_item_id": "USP_008",
+        "sentence_text": "과도한 시중 유동성을 회수하기 위해 다음 주부터 중앙은행의 정례 자금공급 규모를 즉시 축소한다."
+      },
+      {
+        "assignment_id": "USPILOT_R01_04",
+        "pilot_rater_id": "PILOT_R01",
+        "display_position": 4,
+        "pilot_item_id": "USP_003",
+        "sentence_text": "지속되는 가격 상승압력을 낮추기 위해 이번 회의에서 정책금리를 0.50%포인트 더 높이기로 결정한다."
+      },
+      {
+        "assignment_id": "USPILOT_R01_05",
+        "pilot_rater_id": "PILOT_R01",
+        "display_position": 5,
+        "pilot_item_id": "USP_004",
+        "sentence_text": "생산 위축 우려와 가격 오름세 재확대 우려가 서로 상쇄되어 지금은 금리를 한 방향으로 움직일 근거가 없다."
+      },
+      {
+        "assignment_id": "USPILOT_R01_06",
+        "pilot_rater_id": "PILOT_R01",
+        "display_position": 6,
+        "pilot_item_id": "USP_006",
+        "sentence_text": "신용 팽창이 이어지는 만큼 다음 정책 변화의 무게중심은 긴축 쪽에 두어야 한다."
+      },
+      {
+        "assignment_id": "USPILOT_R01_07",
+        "pilot_rater_id": "PILOT_R01",
+        "display_position": 7,
+        "pilot_item_id": "USP_005",
+        "sentence_text": "단기자금시장의 경색을 풀기 위해 다음 주부터 금융기관에 공급하는 유동성 규모를 즉시 늘린다."
+      },
+      {
+        "assignment_id": "USPILOT_R01_08",
+        "pilot_rater_id": "PILOT_R01",
+        "display_position": 8,
+        "pilot_item_id": "USP_009",
+        "sentence_text": "수요의 급격한 위축을 막기 위해 이번 회의에서 정책금리를 0.50%포인트 더 낮추기로 결정한다."
+      },
+      {
+        "assignment_id": "USPILOT_R01_09",
+        "pilot_rater_id": "PILOT_R01",
+        "display_position": 9,
+        "pilot_item_id": "USP_012",
+        "sentence_text": "경기 하방위험이 더 커진다면 앞으로의 조정에서는 완화 가능성을 우선 검토해야 한다."
+      },
+      {
+        "assignment_id": "USPILOT_R01_10",
+        "pilot_rater_id": "PILOT_R01",
+        "display_position": 10,
+        "pilot_item_id": "USP_007",
+        "sentence_text": "현재 자료는 금리를 올려야 할 이유와 내려야 할 이유를 비슷한 크기로 보여 준다."
+      },
+      {
+        "assignment_id": "USPILOT_R01_11",
+        "pilot_rater_id": "PILOT_R01",
+        "display_position": 11,
+        "pilot_item_id": "USP_002",
+        "sentence_text": "고용 회복이 분명해질 때까지 현재의 완화적 통화 여건을 이어가는 편이 적절하다."
+      },
+      {
+        "assignment_id": "USPILOT_R01_12",
+        "pilot_rater_id": "PILOT_R01",
+        "display_position": 12,
+        "pilot_item_id": "USP_001",
+        "sentence_text": "그 위험이 커질 경우에는 앞에서 언급한 쪽으로 통화정책을 조정해야 한다."
+      }
+    ],
+    "PILOT_R02": [
+      {
+        "assignment_id": "USPILOT_R02_01",
+        "pilot_rater_id": "PILOT_R02",
+        "display_position": 1,
+        "pilot_item_id": "USP_007",
+        "sentence_text": "현재 자료는 금리를 올려야 할 이유와 내려야 할 이유를 비슷한 크기로 보여 준다."
+      },
+      {
+        "assignment_id": "USPILOT_R02_02",
+        "pilot_rater_id": "PILOT_R02",
+        "display_position": 2,
+        "pilot_item_id": "USP_009",
+        "sentence_text": "수요의 급격한 위축을 막기 위해 이번 회의에서 정책금리를 0.50%포인트 더 낮추기로 결정한다."
+      },
+      {
+        "assignment_id": "USPILOT_R02_03",
+        "pilot_rater_id": "PILOT_R02",
+        "display_position": 3,
+        "pilot_item_id": "USP_002",
+        "sentence_text": "고용 회복이 분명해질 때까지 현재의 완화적 통화 여건을 이어가는 편이 적절하다."
+      },
+      {
+        "assignment_id": "USPILOT_R02_04",
+        "pilot_rater_id": "PILOT_R02",
+        "display_position": 4,
+        "pilot_item_id": "USP_006",
+        "sentence_text": "신용 팽창이 이어지는 만큼 다음 정책 변화의 무게중심은 긴축 쪽에 두어야 한다."
+      },
+      {
+        "assignment_id": "USPILOT_R02_05",
+        "pilot_rater_id": "PILOT_R02",
+        "display_position": 5,
+        "pilot_item_id": "USP_012",
+        "sentence_text": "경기 하방위험이 더 커진다면 앞으로의 조정에서는 완화 가능성을 우선 검토해야 한다."
+      },
+      {
+        "assignment_id": "USPILOT_R02_06",
+        "pilot_rater_id": "PILOT_R02",
+        "display_position": 6,
+        "pilot_item_id": "USP_001",
+        "sentence_text": "그 위험이 커질 경우에는 앞에서 언급한 쪽으로 통화정책을 조정해야 한다."
+      },
+      {
+        "assignment_id": "USPILOT_R02_07",
+        "pilot_rater_id": "PILOT_R02",
+        "display_position": 7,
+        "pilot_item_id": "USP_010",
+        "sentence_text": "경기 대응을 위해 금리 인상과 금리 인하를 모두 즉시 시행할 필요가 있다."
+      },
+      {
+        "assignment_id": "USPILOT_R02_08",
+        "pilot_rater_id": "PILOT_R02",
+        "display_position": 8,
+        "pilot_item_id": "USP_004",
+        "sentence_text": "생산 위축 우려와 가격 오름세 재확대 우려가 서로 상쇄되어 지금은 금리를 한 방향으로 움직일 근거가 없다."
+      },
+      {
+        "assignment_id": "USPILOT_R02_09",
+        "pilot_rater_id": "PILOT_R02",
+        "display_position": 9,
+        "pilot_item_id": "USP_005",
+        "sentence_text": "단기자금시장의 경색을 풀기 위해 다음 주부터 금융기관에 공급하는 유동성 규모를 즉시 늘린다."
+      },
+      {
+        "assignment_id": "USPILOT_R02_10",
+        "pilot_rater_id": "PILOT_R02",
+        "display_position": 10,
+        "pilot_item_id": "USP_011",
+        "sentence_text": "기조적 물가가 충분히 안정되기 전까지 제약적인 금융 여건을 그대로 유지하는 것이 바람직하다."
+      },
+      {
+        "assignment_id": "USPILOT_R02_11",
+        "pilot_rater_id": "PILOT_R02",
+        "display_position": 11,
+        "pilot_item_id": "USP_008",
+        "sentence_text": "과도한 시중 유동성을 회수하기 위해 다음 주부터 중앙은행의 정례 자금공급 규모를 즉시 축소한다."
+      },
+      {
+        "assignment_id": "USPILOT_R02_12",
+        "pilot_rater_id": "PILOT_R02",
+        "display_position": 12,
+        "pilot_item_id": "USP_003",
+        "sentence_text": "지속되는 가격 상승압력을 낮추기 위해 이번 회의에서 정책금리를 0.50%포인트 더 높이기로 결정한다."
+      }
+    ],
+    "PILOT_R03": [
+      {
+        "assignment_id": "USPILOT_R03_01",
+        "pilot_rater_id": "PILOT_R03",
+        "display_position": 1,
+        "pilot_item_id": "USP_007",
+        "sentence_text": "현재 자료는 금리를 올려야 할 이유와 내려야 할 이유를 비슷한 크기로 보여 준다."
+      },
+      {
+        "assignment_id": "USPILOT_R03_02",
+        "pilot_rater_id": "PILOT_R03",
+        "display_position": 2,
+        "pilot_item_id": "USP_005",
+        "sentence_text": "단기자금시장의 경색을 풀기 위해 다음 주부터 금융기관에 공급하는 유동성 규모를 즉시 늘린다."
+      },
+      {
+        "assignment_id": "USPILOT_R03_03",
+        "pilot_rater_id": "PILOT_R03",
+        "display_position": 3,
+        "pilot_item_id": "USP_009",
+        "sentence_text": "수요의 급격한 위축을 막기 위해 이번 회의에서 정책금리를 0.50%포인트 더 낮추기로 결정한다."
+      },
+      {
+        "assignment_id": "USPILOT_R03_04",
+        "pilot_rater_id": "PILOT_R03",
+        "display_position": 4,
+        "pilot_item_id": "USP_008",
+        "sentence_text": "과도한 시중 유동성을 회수하기 위해 다음 주부터 중앙은행의 정례 자금공급 규모를 즉시 축소한다."
+      },
+      {
+        "assignment_id": "USPILOT_R03_05",
+        "pilot_rater_id": "PILOT_R03",
+        "display_position": 5,
+        "pilot_item_id": "USP_002",
+        "sentence_text": "고용 회복이 분명해질 때까지 현재의 완화적 통화 여건을 이어가는 편이 적절하다."
+      },
+      {
+        "assignment_id": "USPILOT_R03_06",
+        "pilot_rater_id": "PILOT_R03",
+        "display_position": 6,
+        "pilot_item_id": "USP_012",
+        "sentence_text": "경기 하방위험이 더 커진다면 앞으로의 조정에서는 완화 가능성을 우선 검토해야 한다."
+      },
+      {
+        "assignment_id": "USPILOT_R03_07",
+        "pilot_rater_id": "PILOT_R03",
+        "display_position": 7,
+        "pilot_item_id": "USP_011",
+        "sentence_text": "기조적 물가가 충분히 안정되기 전까지 제약적인 금융 여건을 그대로 유지하는 것이 바람직하다."
+      },
+      {
+        "assignment_id": "USPILOT_R03_08",
+        "pilot_rater_id": "PILOT_R03",
+        "display_position": 8,
+        "pilot_item_id": "USP_003",
+        "sentence_text": "지속되는 가격 상승압력을 낮추기 위해 이번 회의에서 정책금리를 0.50%포인트 더 높이기로 결정한다."
+      },
+      {
+        "assignment_id": "USPILOT_R03_09",
+        "pilot_rater_id": "PILOT_R03",
+        "display_position": 9,
+        "pilot_item_id": "USP_001",
+        "sentence_text": "그 위험이 커질 경우에는 앞에서 언급한 쪽으로 통화정책을 조정해야 한다."
+      },
+      {
+        "assignment_id": "USPILOT_R03_10",
+        "pilot_rater_id": "PILOT_R03",
+        "display_position": 10,
+        "pilot_item_id": "USP_006",
+        "sentence_text": "신용 팽창이 이어지는 만큼 다음 정책 변화의 무게중심은 긴축 쪽에 두어야 한다."
+      },
+      {
+        "assignment_id": "USPILOT_R03_11",
+        "pilot_rater_id": "PILOT_R03",
+        "display_position": 11,
+        "pilot_item_id": "USP_004",
+        "sentence_text": "생산 위축 우려와 가격 오름세 재확대 우려가 서로 상쇄되어 지금은 금리를 한 방향으로 움직일 근거가 없다."
+      },
+      {
+        "assignment_id": "USPILOT_R03_12",
+        "pilot_rater_id": "PILOT_R03",
+        "display_position": 12,
+        "pilot_item_id": "USP_010",
+        "sentence_text": "경기 대응을 위해 금리 인상과 금리 인하를 모두 즉시 시행할 필요가 있다."
+      }
+    ],
+    "PILOT_R04": [
+      {
+        "assignment_id": "USPILOT_R04_01",
+        "pilot_rater_id": "PILOT_R04",
+        "display_position": 1,
+        "pilot_item_id": "USP_010",
+        "sentence_text": "경기 대응을 위해 금리 인상과 금리 인하를 모두 즉시 시행할 필요가 있다."
+      },
+      {
+        "assignment_id": "USPILOT_R04_02",
+        "pilot_rater_id": "PILOT_R04",
+        "display_position": 2,
+        "pilot_item_id": "USP_001",
+        "sentence_text": "그 위험이 커질 경우에는 앞에서 언급한 쪽으로 통화정책을 조정해야 한다."
+      },
+      {
+        "assignment_id": "USPILOT_R04_03",
+        "pilot_rater_id": "PILOT_R04",
+        "display_position": 3,
+        "pilot_item_id": "USP_012",
+        "sentence_text": "경기 하방위험이 더 커진다면 앞으로의 조정에서는 완화 가능성을 우선 검토해야 한다."
+      },
+      {
+        "assignment_id": "USPILOT_R04_04",
+        "pilot_rater_id": "PILOT_R04",
+        "display_position": 4,
+        "pilot_item_id": "USP_006",
+        "sentence_text": "신용 팽창이 이어지는 만큼 다음 정책 변화의 무게중심은 긴축 쪽에 두어야 한다."
+      },
+      {
+        "assignment_id": "USPILOT_R04_05",
+        "pilot_rater_id": "PILOT_R04",
+        "display_position": 5,
+        "pilot_item_id": "USP_004",
+        "sentence_text": "생산 위축 우려와 가격 오름세 재확대 우려가 서로 상쇄되어 지금은 금리를 한 방향으로 움직일 근거가 없다."
+      },
+      {
+        "assignment_id": "USPILOT_R04_06",
+        "pilot_rater_id": "PILOT_R04",
+        "display_position": 6,
+        "pilot_item_id": "USP_005",
+        "sentence_text": "단기자금시장의 경색을 풀기 위해 다음 주부터 금융기관에 공급하는 유동성 규모를 즉시 늘린다."
+      },
+      {
+        "assignment_id": "USPILOT_R04_07",
+        "pilot_rater_id": "PILOT_R04",
+        "display_position": 7,
+        "pilot_item_id": "USP_011",
+        "sentence_text": "기조적 물가가 충분히 안정되기 전까지 제약적인 금융 여건을 그대로 유지하는 것이 바람직하다."
+      },
+      {
+        "assignment_id": "USPILOT_R04_08",
+        "pilot_rater_id": "PILOT_R04",
+        "display_position": 8,
+        "pilot_item_id": "USP_007",
+        "sentence_text": "현재 자료는 금리를 올려야 할 이유와 내려야 할 이유를 비슷한 크기로 보여 준다."
+      },
+      {
+        "assignment_id": "USPILOT_R04_09",
+        "pilot_rater_id": "PILOT_R04",
+        "display_position": 9,
+        "pilot_item_id": "USP_003",
+        "sentence_text": "지속되는 가격 상승압력을 낮추기 위해 이번 회의에서 정책금리를 0.50%포인트 더 높이기로 결정한다."
+      },
+      {
+        "assignment_id": "USPILOT_R04_10",
+        "pilot_rater_id": "PILOT_R04",
+        "display_position": 10,
+        "pilot_item_id": "USP_002",
+        "sentence_text": "고용 회복이 분명해질 때까지 현재의 완화적 통화 여건을 이어가는 편이 적절하다."
+      },
+      {
+        "assignment_id": "USPILOT_R04_11",
+        "pilot_rater_id": "PILOT_R04",
+        "display_position": 11,
+        "pilot_item_id": "USP_008",
+        "sentence_text": "과도한 시중 유동성을 회수하기 위해 다음 주부터 중앙은행의 정례 자금공급 규모를 즉시 축소한다."
+      },
+      {
+        "assignment_id": "USPILOT_R04_12",
+        "pilot_rater_id": "PILOT_R04",
+        "display_position": 12,
+        "pilot_item_id": "USP_009",
+        "sentence_text": "수요의 급격한 위축을 막기 위해 이번 회의에서 정책금리를 0.50%포인트 더 낮추기로 결정한다."
+      }
+    ],
+    "PILOT_R05": [
+      {
+        "assignment_id": "USPILOT_R05_01",
+        "pilot_rater_id": "PILOT_R05",
+        "display_position": 1,
+        "pilot_item_id": "USP_007",
+        "sentence_text": "현재 자료는 금리를 올려야 할 이유와 내려야 할 이유를 비슷한 크기로 보여 준다."
+      },
+      {
+        "assignment_id": "USPILOT_R05_02",
+        "pilot_rater_id": "PILOT_R05",
+        "display_position": 2,
+        "pilot_item_id": "USP_002",
+        "sentence_text": "고용 회복이 분명해질 때까지 현재의 완화적 통화 여건을 이어가는 편이 적절하다."
+      },
+      {
+        "assignment_id": "USPILOT_R05_03",
+        "pilot_rater_id": "PILOT_R05",
+        "display_position": 3,
+        "pilot_item_id": "USP_011",
+        "sentence_text": "기조적 물가가 충분히 안정되기 전까지 제약적인 금융 여건을 그대로 유지하는 것이 바람직하다."
+      },
+      {
+        "assignment_id": "USPILOT_R05_04",
+        "pilot_rater_id": "PILOT_R05",
+        "display_position": 4,
+        "pilot_item_id": "USP_012",
+        "sentence_text": "경기 하방위험이 더 커진다면 앞으로의 조정에서는 완화 가능성을 우선 검토해야 한다."
+      },
+      {
+        "assignment_id": "USPILOT_R05_05",
+        "pilot_rater_id": "PILOT_R05",
+        "display_position": 5,
+        "pilot_item_id": "USP_010",
+        "sentence_text": "경기 대응을 위해 금리 인상과 금리 인하를 모두 즉시 시행할 필요가 있다."
+      },
+      {
+        "assignment_id": "USPILOT_R05_06",
+        "pilot_rater_id": "PILOT_R05",
+        "display_position": 6,
+        "pilot_item_id": "USP_003",
+        "sentence_text": "지속되는 가격 상승압력을 낮추기 위해 이번 회의에서 정책금리를 0.50%포인트 더 높이기로 결정한다."
+      },
+      {
+        "assignment_id": "USPILOT_R05_07",
+        "pilot_rater_id": "PILOT_R05",
+        "display_position": 7,
+        "pilot_item_id": "USP_001",
+        "sentence_text": "그 위험이 커질 경우에는 앞에서 언급한 쪽으로 통화정책을 조정해야 한다."
+      },
+      {
+        "assignment_id": "USPILOT_R05_08",
+        "pilot_rater_id": "PILOT_R05",
+        "display_position": 8,
+        "pilot_item_id": "USP_004",
+        "sentence_text": "생산 위축 우려와 가격 오름세 재확대 우려가 서로 상쇄되어 지금은 금리를 한 방향으로 움직일 근거가 없다."
+      },
+      {
+        "assignment_id": "USPILOT_R05_09",
+        "pilot_rater_id": "PILOT_R05",
+        "display_position": 9,
+        "pilot_item_id": "USP_005",
+        "sentence_text": "단기자금시장의 경색을 풀기 위해 다음 주부터 금융기관에 공급하는 유동성 규모를 즉시 늘린다."
+      },
+      {
+        "assignment_id": "USPILOT_R05_10",
+        "pilot_rater_id": "PILOT_R05",
+        "display_position": 10,
+        "pilot_item_id": "USP_006",
+        "sentence_text": "신용 팽창이 이어지는 만큼 다음 정책 변화의 무게중심은 긴축 쪽에 두어야 한다."
+      },
+      {
+        "assignment_id": "USPILOT_R05_11",
+        "pilot_rater_id": "PILOT_R05",
+        "display_position": 11,
+        "pilot_item_id": "USP_009",
+        "sentence_text": "수요의 급격한 위축을 막기 위해 이번 회의에서 정책금리를 0.50%포인트 더 낮추기로 결정한다."
+      },
+      {
+        "assignment_id": "USPILOT_R05_12",
+        "pilot_rater_id": "PILOT_R05",
+        "display_position": 12,
+        "pilot_item_id": "USP_008",
+        "sentence_text": "과도한 시중 유동성을 회수하기 위해 다음 주부터 중앙은행의 정례 자금공급 규모를 즉시 축소한다."
+      }
+    ]
+  },
+  "source_hashes": {
+    "response_template": "fe83dcdd15485e67e7b7643b749bdbde37b04f642aa1362ff6f6758202fd76b7",
+    "participant_items": "8966c78661817031f459e348dc870f63660be34429328b65e498556bb024365a",
+    "pilot_fieldwork_config": "326e405b4e88d852b4a4c7e22109b02c6a00932003820161b6961640d414b057",
+    "pilot_protocol": "be576a1aa4ac98dea47b72b70666b35fa968784c058afec41176805eea180f73",
+    "parent_manifest": "64ba49fc40a8c009f630682817ecb7129fc01ec26935ac71f99d60c2eb504c9c"
+  },
+  "release_source_hashes": {
+    "database_schema": "ac214e9a6d08b02cad8d14d97c6a049374c610b0f7ba54a6d0e1bb09796e895d",
+    "edge_contract": "8f40b7c744647a956951a71b60ff940ce03d564c7caf1eb1a2983a2e5a297c76",
+    "edge_function": "fecb6f47dcc88dae595b3acf2207ed5d9c61374989cf2d445e77f29e8fe93cb7",
+    "public_app": "1c8a65e24b39e05e2363daa4f68b79735f7d3c4276675610ebd937a470c3e299",
+    "public_contract": "5359b283c4d90bdbb9dd716c7a2be892e9f362df3949ebc8aa567da3c3043086",
+    "public_index": "250a521cba58b081ef774354ede7274dade952abf9729db8d6f68fc9d0bd329d",
+    "public_styles": "ea23e22cf0f2adf2e0707fa84e2e2f92efe73d231ea6ebc6d379b37813a80580",
+    "supabase_config": "62e27b64065d1802c260244e55f068856025ee4dc65a307ca67827ffe8308add"
+  }
+}
