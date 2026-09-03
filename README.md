@@ -97,20 +97,31 @@ Windows에서는 공식 안내에 따라 Supabase CLI를 설치한 뒤, 저장�
 Dashboard의 Data API integration 화면에서 Enable Data API가 꺼져 있는지도
 확인합니다. 이 프로젝트는 REST/GraphQL Data API를 사용하지 않습니다.
 
-다음으로 supabase/.env.example을 참고해 Git/Google Drive 저장소 밖의
-OS 로컬 보호 디렉터리에 pilot-function.env를 만듭니다. Windows 기본 운영
-경로는 %LOCALAPPDATA%\bok-stance-pilot입니다. 세 HMAC/암호화 키는 각각
-서로 다른 32-byte 무작위 값이어야 합니다. 저장소의 무시된 .private도
+다음으로 Git/Google Drive 저장소 밖의 OS 로컬 보호 디렉터리에 정확히 7개의
+custom secret만 들어 있는 pilot-function.env를 생성합니다. Windows 기본
+운영 경로는 %LOCALAPPDATA%\bok-stance-pilot입니다. 생성기는 세 HMAC/암호화
+키를 서로 다른 32-byte 무작위 값으로 만들고, 값을 화면에 출력하지 않으며,
+저장소 내부 경로와 우발적 덮어쓰기를 거부합니다. 저장소의 무시된 .private도
 동기화될 수 있으므로 실운영 비밀정보를 넣지 마십시오.
 
     $pilotPrivate = Join-Path $env:LOCALAPPDATA "bok-stance-pilot"
-    New-Item -ItemType Directory -Force -Path $pilotPrivate
     $pilotEnv = Join-Path $pilotPrivate "pilot-function.env"
-    if (Test-Path -LiteralPath $pilotEnv) { throw "Refusing to overwrite $pilotEnv" }
-    Copy-Item -LiteralPath "supabase/.env.example" -Destination $pilotEnv
     $env:BOK_PILOT_PRIVATE_DIR = $pilotPrivate
-    supabase secrets set --env-file $pilotEnv
-    supabase functions deploy pilot-api --no-verify-jwt
+    python -X utf8 supabase/admin/generate_function_secrets.py generate `
+      --private-root $pilotPrivate `
+      --output $pilotEnv `
+      --consent-version "consent-vYYYY-MM-DD-rN" `
+      --pii-key-id "pilot-pii-v1"
+    python -X utf8 supabase/admin/generate_function_secrets.py validate `
+      --private-root $pilotPrivate `
+      --input $pilotEnv
+    supabase secrets set --env-file $pilotEnv --project-ref mebisrsvasrzwkmsodsw
+    supabase functions deploy pilot-api --project-ref mebisrsvasrzwkmsodsw --no-verify-jwt
+
+`SUPABASE_DB_URL`은 hosted Supabase가 함수에 자동 제공하는 예약 환경변수라
+custom secret 파일에 넣지 않습니다. 관리자 export와 gate 도구를 로컬에서
+실행할 때만 Dashboard Connect에서 얻은 서버용 Postgres URI를 현재 프로세스의
+`SUPABASE_DB_URL`에 두며, 파일·GitHub·대화에 기록하지 않습니다.
 
 config.toml도 로컬 Data API를 꺼 두었고, 브라우저에는
 anon/publishable/service-role/DB key가 하나도 들어가지 않습니다.
@@ -127,6 +138,81 @@ anon/publishable/service-role/DB key가 하나도 들어가지 않습니다.
 - PII-free research export와 hosted collector
 - cutoff dry-run과 보유기간 삭제
 - Chrome/Edge 및 모바일 화면
+
+disposable 초대는 production 기본동작과 분리된 명시적 모드로 생성합니다.
+이 모드는 정확히 1개만 만들고 만료시간을 24시간 이내로 제한합니다. 생성된
+`invite_seed.private.sql`을 SQL Editor에서 적용한 뒤, private JSON의
+`invite_id`만 사용해 E2E gate를 엽니다. raw token은 출력하지 않습니다.
+
+    $instrumentHash = (python -X utf8 -c "import json; print(json.load(open('docs/instrument.json', encoding='utf-8'))['instrument_sha256'])").Trim()
+    $inviteSecretLine = @(Get-Content -LiteralPath $pilotEnv | Where-Object { $_.StartsWith("INVITE_HMAC_SECRET_B64=") })
+    if ($inviteSecretLine.Count -ne 1) { throw "Expected exactly one invite HMAC secret" }
+    $env:INVITE_HMAC_SECRET_B64 = $inviteSecretLine[0].Substring("INVITE_HMAC_SECRET_B64=".Length)
+    $e2eOutput = Join-Path $pilotPrivate "e2e-invite-01"
+    $e2eExpiry = (Get-Date).ToUniversalTime().AddHours(2).ToString("yyyy-MM-ddTHH:mm:ssZ")
+    python -X utf8 supabase/admin/provision_invites.py `
+      --mode disposable-e2e `
+      --private-root $pilotPrivate `
+      --output $e2eOutput `
+      --instrument-sha256 $instrumentHash `
+      --expires-at $e2eExpiry
+
+gate 도구는 로컬 현재 프로세스의 서버용 `SUPABASE_DB_URL`을 사용합니다.
+시험 개방은 기존 submission이 0개이고 지정한 초대만 유효·미폐기 상태일 때만
+성공합니다. 종료는 같은 transaction에서 gate를 닫고 초대를 폐기합니다.
+아래 confirmation phrase는 코드가 요구하는 정확한 문구입니다.
+
+    $e2eMetadata = Get-Content -Encoding utf8 -Raw (Join-Path $e2eOutput "invite_links.private.json") | ConvertFrom-Json
+    $e2eInviteId = $e2eMetadata.invites[0].invite_id
+    python -X utf8 supabase/admin/manage_fielding_gate.py status `
+      --instrument-sha256 $instrumentHash
+    $openE2e = "OPEN E2E FIELDING $instrumentHash $e2eInviteId"
+    python -X utf8 supabase/admin/manage_fielding_gate.py open-e2e `
+      --instrument-sha256 $instrumentHash `
+      --invite-id $e2eInviteId `
+      --confirm $openE2e
+    python -X utf8 tools/run_remote_e2e.py `
+      --private-root $pilotPrivate `
+      --invite-file (Join-Path $e2eOutput "invite_links.private.json") `
+      --identity-file (Join-Path $pilotPrivate "remote-e2e-identity.private.json") `
+      --receipt (Join-Path $pilotPrivate "remote-e2e-receipt.json")
+    $closeE2e = "CLOSE E2E FIELDING AND REVOKE $instrumentHash $e2eInviteId"
+    python -X utf8 supabase/admin/manage_fielding_gate.py close-e2e `
+      --instrument-sha256 $instrumentHash `
+      --invite-id $e2eInviteId `
+      --confirm $closeE2e
+    python -X utf8 supabase/admin/manage_fielding_gate.py status `
+      --instrument-sha256 $instrumentHash
+
+`tools/run_remote_e2e.py`는 공개된 HOLD 파일이 로컬 release와 byte-for-byte
+같은지 확인한 뒤, 임시 headless Chrome/Edge 안에서만 `site-config.js`의
+`fieldingEnabled`와 E2E 시각 두 필드를 바꿉니다. raw 초대와 시험 identity는
+외부 보호 경로에서만 읽으며 receipt에는 기록하지 않습니다. 브라우저의 모든
+HTTP(S)/WebSocket 요청은 전송 전에 검사되고 정확한 정적 asset/API 주소만
+허용됩니다. harness는 성공해도 `E2E_PASSED_CLEANUP_PENDING` receipt를 쓰고
+종료 코드 3을 반환하며, `finally`에서 gate 폐쇄·초대 폐기를 best-effort로
+시도합니다. 정확한 identity 파일 형식, 의존성, 실행 전후 확인과 삭제 절차는
+`tools/REMOTE_E2E.md`를 따르십시오.
+
+성공 receipt도 `cleanup_required=true`, `fielding_authorized=false`입니다.
+따라서 자동 폐쇄 결과와 무관하게 위 순서대로 `close-e2e`와 `status`를 다시
+실행하고, individual-withdrawal 도구로 시험 identity·submission·12개
+response·invite를 삭제해야 합니다. 그 뒤 식별정보가 없는 최종 receipt를
+생성합니다.
+
+    python -B -X utf8 tools/finalize_remote_e2e.py `
+      --private-root $pilotPrivate `
+      --pending-receipt (Join-Path $pilotPrivate "remote-e2e-receipt.json") `
+      --invite-file (Join-Path $e2eOutput "invite_links.private.json") `
+      --output (Join-Path $pilotPrivate "remote-e2e-clean-receipt.json")
+
+finalizer는 삭제를 수행하지 않고, 현재 배포와 pending receipt를 다시 검증한
+뒤 pinned DB read-only transaction으로 gate 폐쇄, 초대 폐기/부재, 해당
+identity·submission·response 0건을 확인합니다. 종료 코드 0과
+`E2E_VERIFIED_CLEAN` receipt를 모두 얻은 뒤에만 그 receipt의 변경되지 않은
+`tested_config_timestamp`를 `remoteE2eVerifiedAt`에 기록하고 live manifest와
+정적 사이트를 새로 검증합니다. 최종 receipt도
+`fielding_authorized=false`이며 production 개방 권한이 아닙니다.
 
 raw 초대 링크는 저장소 밖 BOK_PILOT_PRIVATE_DIR 아래에만 생성되고 DB에는
 HMAC만 들어갑니다. 관리자 도구는 저장소 내부 .private 경로도 거부합니다.

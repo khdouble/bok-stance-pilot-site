@@ -7,6 +7,9 @@ from pathlib import Path
 
 SUPABASE = Path(__file__).resolve().parents[1]
 MIGRATION = SUPABASE / "migrations" / "202609030001_pilot_backend.sql"
+WITHDRAWAL_MIGRATION = (
+    SUPABASE / "migrations" / "202609030003_pilot_withdrawal_audit.sql"
+)
 EDGE = SUPABASE / "functions" / "pilot-api" / "index.ts"
 CORE = SUPABASE / "functions" / "pilot-api" / "_shared" / "core.ts"
 CONFIG = SUPABASE / "config.toml"
@@ -52,6 +55,37 @@ class BackendStaticTest(unittest.TestCase):
         for direct_identifier in ("name", "phone", "identity_ciphertext"):
             self.assertNotIn(direct_identifier, submissions)
             self.assertNotIn(direct_identifier, responses)
+
+    def test_withdrawal_audit_is_private_and_contains_no_target_identifier(self) -> None:
+        migration = WITHDRAWAL_MIGRATION.read_text(encoding="utf-8").lower()
+        table = migration.split(
+            "create table private.pilot_withdrawal_events", 1
+        )[1].split(");", 1)[0]
+        self.assertIn("enable row level security", migration)
+        self.assertIn("force row level security", migration)
+        self.assertIn(
+            "revoke all on table private.pilot_withdrawal_events", migration
+        )
+        self.assertNotRegex(
+            migration,
+            r"grant\s+.+\s+to\s+(?:public|anon|authenticated|service_role)",
+        )
+        for forbidden_column in (
+            "name",
+            "phone",
+            "invite_id",
+            "participant_id",
+            "submission_id",
+            "identity_hmac",
+            "token_hmac",
+            "ciphertext",
+            "free_text",
+            "operator_note",
+        ):
+            self.assertNotRegex(
+                table,
+                rf"\n\s*{forbidden_column}\s+",
+            )
 
     def test_no_committed_raw_invite_or_environment_secret(self) -> None:
         files = [path for path in SUPABASE.rglob("*") if path.is_file() and "__pycache__" not in path.parts]

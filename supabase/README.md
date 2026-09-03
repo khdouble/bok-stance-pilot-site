@@ -2,13 +2,14 @@
 
 This directory implements the server boundary for the hosted usability pilot. GitHub Pages serves only static survey files. The browser sends `POST` requests to `pilot-api`; it receives no Supabase publishable, anonymous, service-role, database, HMAC, or encryption key.
 
-The backend is intentionally fail-closed. Fielding cannot begin until the final hosted instrument is seeded, activated, and matched by the function environment; five one-time invitations are provisioned; the consent version is approved; and the PI separately changes the database `fielding_open` gate from its default `false` value.
+The backend is intentionally fail-closed. Fielding cannot begin until the final hosted instrument is seeded, activated, and matched by the function environment; the privacy notice and consent text have a fixed internal version; the disposable remote E2E has passed and been cleaned up; exactly five production invitations are provisioned; and the PI separately changes the database `fielding_open` gate from its default `false` value. An internal consent version identifies the text shown to participants; it does not by itself assert institutional ethics approval.
 
 ## Data boundary
 
 - `private.pilot_invites` stores only HMAC-SHA-256 digests of 256-bit invite tokens. Raw tokens remain in an external OS-local protected directory and are sent individually. Operational secrets and direct PII are forbidden anywhere inside the repository, including ignored `.private/` paths.
 - `private.participant_identity` stores only name and normalized phone number encrypted together with AES-256-GCM. Consent version and timestamp are also private.
 - `research.pilot_submissions` and `research.pilot_responses` contain pseudonymous IDs, assigned item IDs, answers, timing, and usability feedback. They contain no name, phone number, raw token, user-agent, or ciphertext. The function neither accepts nor stores a browser user-agent field.
+- `private.pilot_withdrawal_events` records only the study hash, internal procedure version, selector type, timestamps, outcome, deletion counts, and successful verification. It contains no participant selector, name, phone, invite/participant/submission ID, HMAC, ciphertext, or free-text note.
 - Direct identity is excluded from the response payload digest. Server validation also rejects the submitted name or phone when repeated in a research free-text field.
 - Both schemas are excluded from the Data API in `config.toml`. Every table has RLS enabled and forced, no permissive policy, and no `PUBLIC`, `anon`, `authenticated`, or `service_role` grant. The hosted project's Data API should also be switched off in Dashboard because this application does not use it.
 - The Edge Function connects over the server-only `SUPABASE_DB_URL` and writes identity, submission, 12 responses, and invite consumption in one database transaction. There is no exposed SQL RPC.
@@ -24,6 +25,12 @@ This separation prevents an analysis export from accidentally containing direct 
 - Items per invitation: exactly 12
 
 `tools/render_instrument_seed.py` generated `migrations/202609030002_seed_pilot_instrument.sql` directly from `docs/instrument.json`: 1 instrument, 12 items, 5 assignment sets, and 60 ordered assignment rows. The renderer recomputes the declared canonical hash and fails on version/count/schema drift, placeholders, unsafe output paths, or overwrite. The database active row, `PILOT_INSTRUMENT_SHA256`, and the hash sent by the frontend must all be identical. Instrument activation does not open fielding: the seed leaves `fielding_open=false`.
+
+Migration files are append-only after they have been applied:
+
+- `202609030001_pilot_backend.sql` creates the private and research data boundary.
+- `202609030002_seed_pilot_instrument.sql` seeds the immutable hosted instrument and leaves fielding closed.
+- `202609030003_pilot_withdrawal_audit.sql` adds the private, forced-RLS, grant-free non-identifying withdrawal completion log.
 
 ## API contract
 
@@ -54,7 +61,7 @@ Submit request:
   "instrument_sha256": "64-character lowercase hosted release hash",
   "consent": {
     "accepted": true,
-    "version": "approved consent version",
+    "version": "consent-vYYYY-MM-DD-rN internal text version",
     "accepted_at": "ISO-8601 timestamp with timezone"
   },
   "identity": { "name": "participant name", "phone": "010-0000-0000" },
@@ -107,52 +114,186 @@ A repeated submit is successful only when the invitation, UUID v4 idempotency ke
 
 ## Deployment sequence
 
-1. Link the CLI to project ref `mebisrsvasrzwkmsodsw` and apply migrations.
-2. Verify the committed generated migration still has exact parity with `docs/instrument.json` by running the test suite, then apply it. For a legitimate future instrument, render to a new migration filename; never overwrite an applied migration.
-3. Create three different 32-byte random keys for invitation HMAC, identity HMAC, and PII encryption. Keep them and the Postgres URI in an external protected environment file based on `.env.example`. On Windows, use `%LOCALAPPDATA%\bok-stance-pilot`; never use this Google Drive/Git repository, even an ignored path.
-4. Upload the server environment with `supabase secrets set --env-file "$env:LOCALAPPDATA\bok-stance-pilot\pilot-function.env"`.
-5. Deploy with `supabase functions deploy pilot-api --no-verify-jwt`.
-6. Provision a disposable test invitation, temporarily open the fielding gate, run the real browser smoke test, revoke that invitation, and return the gate to `false`.
-7. Obtain PI fielding clearance. Then set `fielding_open=true`, `fielding_opened_at=now()`, and `fielding_closed_at=null` for the one active instrument.
-8. Provision the five production invitations, apply their digest-only SQL in the SQL editor, and send each raw URL separately.
+1. Link the CLI to project ref `mebisrsvasrzwkmsodsw`, run the complete test suite, and confirm `docs/instrument.json` still matches migration 002.
+2. Run `supabase db push --dry-run`, review the ordered migration list, apply every pending migration including migration 003, and use `supabase migration list` to confirm local/remote history parity. Never modify a migration that is already remote.
+3. Generate and validate the exactly seven custom function secrets in an external, access-controlled, non-synced directory. Upload that file without displaying or copying its values.
+4. Deploy `pilot-api`, confirm the deployed function is listed, and run a controlled malformed-request probe. A controlled `400` proves the route and runtime configuration loaded; `404` or `500` is a deployment blocker. Only the disposable E2E proves database read/write behavior.
+5. Manually disable the hosted project's Data API in the Supabase Dashboard and record the check. `config.toml`, RLS, and revokes are necessary defenses but do not prove the hosted Dashboard switch is off.
+6. Provision exactly one short-lived `disposable-e2e` invitation, apply its digest-only seed, temporarily open only the E2E database gate, and exercise the real Pages assets and deployed function through `tools/run_remote_e2e.py`. The browser intercepts all requests before sending, fails every destination outside the exact allowlist, and fulfills only the exact `site-config.js` request with the two-field in-memory override. Do not publish or fabricate `remoteE2eVerifiedAt` before success.
+7. Treat a successful browser run as pending, not complete: the harness writes `E2E_PASSED_CLEANUP_PENDING` and deliberately exits `3`. The receipt's `tested_config_timestamp` is exactly the UTC second injected into the tested in-memory config. In a `finally` path after a valid disposable invite is loaded, the harness attempts to close the gate and revoke that invite on both success and failure without replacing the original failure. If automatic close reports a warning, run `close-e2e` manually at once.
+8. Deliberately remove the disposable test records with the individual-withdrawal tool: preview the invite-scoped deletion, use its exact generated confirmation, and verify that identity, submission, responses, and the disposable invitation are absent. Automatic close/revoke is not database-row cleanup.
+9. Run `tools/finalize_remote_e2e.py` with the pending receipt and original private provision file. It re-attests the same staged assets and exact tested timestamp, checks the gate and target rows read-only, and only then writes the non-identifying `E2E_VERIFIED_CLEAN` receipt. Its `fielding_authorized` remains `false`.
+10. Copy the clean receipt's unchanged `tested_config_timestamp` to `remoteE2eVerifiedAt`, rebuild and validate the live static release and manifest, publish it, and verify the deployed operational file hashes.
+11. Provision exactly five `production` invitations for `PILOT_R01` through `PILOT_R05`, apply their digest-only seed, and inspect gate status.
+12. Open production with `manage_fielding_gate.py` only after its local live-release check and all server-side eligibility checks pass. Send each raw invitation URL separately. The database gate is the final switch.
 
-The real secret file must define:
+## Generate and upload exactly seven custom secrets
 
-- `SUPABASE_DB_URL`: server-side Postgres/Supavisor connection URI; never put it in GitHub Pages
-- `PILOT_INSTRUMENT_SHA256`: final hosted release digest
-- `PILOT_INSTRUMENT_VERSION`: `v260903-pilot-hosted-1`
-- `PILOT_CONSENT_VERSION`: approved consent text version
-- `INVITE_HMAC_SECRET_B64`: base64 of 32 random bytes
-- `IDENTITY_HMAC_SECRET_B64`: base64 of a different 32 random bytes
-- `PII_ENCRYPTION_KEY_B64`: base64 of a third 32 random bytes
-- `PII_KEY_ID`: nonsecret rotation label such as `pilot-pii-v1`
+Use `admin/generate_function_secrets.py`; do not hand-compose the file. It reads the canonical instrument hash/version, validates the internal consent version, creates three mutually different 32-byte keys from the operating system random source, writes atomically, refuses overwrite by default, and validates the result. `generate` and `validate` print only a count and protected file path, never secret values:
 
-Supabase supplies some standard environment names automatically, but the deployment must verify `SUPABASE_DB_URL` is the intended pooled server connection before fielding.
+```powershell
+$pilotPrivate = Join-Path $env:LOCALAPPDATA "bok-stance-pilot"
+$env:BOK_PILOT_PRIVATE_DIR = $pilotPrivate
+python -X utf8 supabase/admin/generate_function_secrets.py generate `
+  --private-root $pilotPrivate `
+  --output (Join-Path $pilotPrivate "pilot-function.env") `
+  --consent-version consent-v2026-09-03-r1
+python -X utf8 supabase/admin/generate_function_secrets.py validate `
+  --private-root $pilotPrivate `
+  --input (Join-Path $pilotPrivate "pilot-function.env")
+supabase secrets set `
+  --project-ref mebisrsvasrzwkmsodsw `
+  --env-file (Join-Path $pilotPrivate "pilot-function.env")
+```
 
-## Provision five invitations
+The custom file contains exactly:
 
-Run from the repository root after putting `INVITE_HMAC_SECRET_B64` in the current process environment. Set `BOK_PILOT_PRIVATE_DIR` to an access-controlled, non-synced directory outside the repository; the Windows OS-local default below is recommended. Read the current hosted hash from the canonical instrument instead of copying a possibly stale value:
+- `PILOT_INSTRUMENT_SHA256`
+- `PILOT_INSTRUMENT_VERSION`
+- `PILOT_CONSENT_VERSION`
+- `INVITE_HMAC_SECRET_B64`
+- `IDENTITY_HMAC_SECRET_B64`
+- `PII_ENCRYPTION_KEY_B64`
+- `PII_KEY_ID`
+
+Hosted Supabase supplies the reserved `SUPABASE_DB_URL` to the Edge Function. It must be absent from the seven-secret custom env file; the validator rejects unexpected names. Local administrator scripts that need a direct Postgres connection read `SUPABASE_DB_URL` only from the current process. Load it from the approved credential manager without putting it in command arguments, shell history, source files, logs, GitHub, Google Drive, or `pilot-function.env`, and remove it from the process after the operation:
+
+```powershell
+# Load SUPABASE_DB_URL into this process from the protected credential source.
+# Run the required admin command, then clear the process copy:
+Remove-Item Env:SUPABASE_DB_URL -ErrorAction SilentlyContinue
+```
+
+`--overwrite` on the generator rotates all three cryptographic keys. Do not use it after invitations or identities exist unless a separately reviewed rotation/migration procedure is ready.
+
+## Deploy and verify the Edge Function
+
+Deploy without browser JWT verification because invitation HMAC validation is the application authentication boundary:
+
+```powershell
+supabase functions deploy pilot-api `
+  --project-ref mebisrsvasrzwkmsodsw `
+  --no-verify-jwt
+supabase functions list --project-ref mebisrsvasrzwkmsodsw
+curl.exe -i -X POST `
+  "https://mebisrsvasrzwkmsodsw.supabase.co/functions/v1/pilot-api" `
+  -H "Origin: https://khdouble.github.io" `
+  -H "Content-Type: application/json" `
+  --data-binary '{"action":"invalid"}'
+```
+
+The probe must return the function's controlled `400 INVALID_ACTION` response with the exact allowed CORS origin. It contains no invite or participant data and is not a substitute for E2E. Confirm the deployed function version/time in the CLI or Dashboard without exporting logs or secret metadata into the repository.
+
+The hosted Data API switch is a separate manual check: in the Supabase Dashboard, open the project's Data API settings, turn the Data API off, and record the date/time and reviewer outside the public repository. Do not infer the remote setting from local `config.toml`. The Edge Function uses the hosted reserved direct database URL, so it does not require the Data API.
+
+## Provision disposable and production invitations
+
+Run from the repository root after loading only `INVITE_HMAC_SECRET_B64` into the current process from the protected secret source. All output paths must be children of the external private root. Read the current hosted hash dynamically:
 
 ```powershell
 $pilotPrivate = Join-Path $env:LOCALAPPDATA "bok-stance-pilot"
 $env:BOK_PILOT_PRIVATE_DIR = $pilotPrivate
 $instrumentHash = (python -X utf8 -c "import json; print(json.load(open('docs/instrument.json', encoding='utf-8'))['instrument_sha256'])").Trim()
+$e2eExpiry = [DateTimeOffset]::UtcNow.AddHours(2).ToString("yyyy-MM-ddTHH:mm:ssZ")
 python supabase/admin/provision_invites.py `
   --private-root $pilotPrivate `
-  --output (Join-Path $pilotPrivate "invites-v1") `
+  --output (Join-Path $pilotPrivate "invite-e2e") `
   --instrument-sha256 $instrumentHash `
-  --expires-at 2026-10-01T00:00:00+09:00
+  --expires-at $e2eExpiry `
+  --mode disposable-e2e `
+  --assignment-code PILOT_R01
 ```
 
-The command refuses every repository-internal path (including `.private/`), refuses paths outside the selected external private root, and refuses to overwrite an existing batch. Its `--site-url` accepts only the exact canonical HTTPS project URL, with no userinfo, port, query, fragment, alternate path, or look-alike host. It creates:
+`disposable-e2e` requires exactly one assignment and refuses an expiry more than 24 hours away. Its SQL is visibly marked as disposable. After E2E cleanup, provision production separately:
 
-- `invite_links.private.json`: five raw links; confidential and never printed by the script
-- `invite_seed.private.sql`: invite UUIDs and HMAC digests only; safe for the SQL editor, but still kept private operational material
+```powershell
+$productionExpiry = "2026-10-30T23:59:59+09:00"
+python supabase/admin/provision_invites.py `
+  --private-root $pilotPrivate `
+  --output (Join-Path $pilotPrivate "invites-production-v1") `
+  --instrument-sha256 $instrumentHash `
+  --expires-at $productionExpiry `
+  --mode production
+```
+
+`production` requires exactly five unique assignments and defaults to `PILOT_R01` through `PILOT_R05`. The command refuses every repository-internal path (including `.private/`), any path outside the selected external private root, overwrite, and any noncanonical project URL. It creates:
+
+- `invite_links.private.json`: `provisioning_mode`, invitation UUIDs, assignments, raw tokens/URLs, and expiry; confidential and never printed by the script
+- `invite_seed.private.sql`: invitation UUIDs and HMAC digests, instrument/assignment identity, and expiry; it never contains raw tokens but remains private operational material
 
 Tokens use URL fragments (`#invite=...`), so GitHub Pages and HTTP referrer
 headers do not receive them. The frontend removes the fragment immediately and
 keeps the raw token only in JavaScript memory. A reload therefore requires the
 original invitation link.
+
+## Inspect and change the fielding gate
+
+`admin/manage_fielding_gate.py` accepts five modes:
+
+- `status`: read-only; prints gate/invitation/submission counts and rejects `--confirm`
+- `open-e2e`: requires `--invite-id`, zero submissions, and exactly that one eligible unrevoked invitation
+- `close-e2e`: closes the gate and revokes exactly the specified disposable invitation
+- `open-production`: requires zero submissions, exactly five eligible unrevoked `PILOT_R01..PILOT_R05` invitations, and a locally valid live PI config and matching live deployment manifest
+- `close`: closes any open fielding gate
+
+Every mutation requires its exact full confirmation phrase:
+
+```text
+OPEN E2E FIELDING <instrument-sha256> <invite-id>
+CLOSE E2E FIELDING AND REVOKE <instrument-sha256> <invite-id>
+OPEN PRODUCTION FIELDING <instrument-sha256>
+CLOSE FIELDING <instrument-sha256>
+```
+
+Example operator sequence:
+
+```powershell
+# SUPABASE_DB_URL must already exist only in this process.
+python -X utf8 supabase/admin/manage_fielding_gate.py status `
+  --instrument-sha256 $instrumentHash
+python -X utf8 supabase/admin/manage_fielding_gate.py open-e2e `
+  --instrument-sha256 $instrumentHash `
+  --invite-id $inviteId `
+  --confirm "OPEN E2E FIELDING $instrumentHash $inviteId"
+# Run the disposable browser-only remote E2E. Exit 3 means browser PASS,
+# automatic close/revoke attempted, and deliberate row cleanup is still pending.
+$e2eInviteFile = Join-Path $pilotPrivate "invite-e2e\invite_links.private.json"
+$e2eIdentityFile = Join-Path $pilotPrivate "remote-e2e-identity.private.json"
+$pendingE2eReceipt = Join-Path $pilotPrivate "remote-e2e-receipt.json"
+python -X utf8 tools/run_remote_e2e.py `
+  --private-root $pilotPrivate `
+  --invite-file $e2eInviteFile `
+  --identity-file $e2eIdentityFile `
+  --receipt $pendingE2eReceipt
+if ($LASTEXITCODE -ne 3) {
+  throw "Remote E2E did not reach the cleanup-pending state."
+}
+python -X utf8 supabase/admin/manage_fielding_gate.py status `
+  --instrument-sha256 $instrumentHash
+```
+
+Each gate mutation locks and rechecks the instrument/invitations in one transaction, verifies the resulting gate state, and fails closed on count or state drift. The E2E harness invokes the same `close-e2e` mutation directly in `finally` once it has validated the private disposable invite, including when later identity, attestation, browser, or receipt steps fail. Cleanup errors are reported separately and do not mask the original E2E error. Always run `status` independently; if automatic close/revoke warns or cannot be verified, run the documented `close-e2e` command manually before diagnosis.
+
+## Two-phase remote E2E evidence and cleanup
+
+The hosted harness uses the real GitHub Pages origin, exact deployed static bytes, and the real Edge Function. It does not publish a temporary live config. Before navigation it compares every required deployed asset with the local staged release and verifies the deployment manifest, instrument digest, release-source hashes, and operational-file hashes. In the browser, CDP `Fetch` pauses every request at the request stage. Only exact static asset URLs and the exact API URL/method are continued; the exact config script alone is fulfilled from memory. An unexpected destination, method, resource type, or token/PII in a URL or header is failed before transmission. Raw token and test identity are permitted only in the body of an exact API `POST` and are never printed, placed in a receipt, or accepted as CLI values.
+
+The harness checks the 12 server assignments, deterministic valid answers, initial success, an identical idempotent retry, rejection of a changed retry, fragment removal, cleared identity inputs, cleared local draft, and zero JavaScript exceptions. It records the exact injected UTC second as `tested_config_timestamp`; it does not substitute a later receipt-writing time. Browser success produces only a protected external pending receipt and exit code `3`, even when automatic close/revoke succeeds, because submitted database rows still require deliberate deletion and independent absence verification.
+
+Use `admin/delete_withdrawn_participant.py --invite-id ... --dry-run` first. Review its scoped counts and exact confirmation phrase, then rerun with that phrase. This single transaction deletes the disposable responses, submission, encrypted identity, and invitation in foreign-key-safe order, verifies absence, and records only the non-identifying migration-003 audit event. Do not treat gate closure, invite revocation, or a pending receipt as deletion.
+
+After deletion, finalize through paths below the same external private root; never pass the raw token or test identity on the command line:
+
+```powershell
+$cleanE2eReceipt = Join-Path $pilotPrivate "remote-e2e-clean-receipt.json"
+python -X utf8 tools/finalize_remote_e2e.py `
+  --private-root $pilotPrivate `
+  --pending-receipt $pendingE2eReceipt `
+  --invite-file $e2eInviteFile `
+  --output $cleanE2eReceipt
+```
+
+The finalizer refuses a pending receipt older than 24 hours, a changed provision file or deployed release, an open gate, any remaining disposable invite (including a revoked row), or any remaining target identity/submission/response. A successful run writes a new `E2E_VERIFIED_CLEAN` receipt with `cleanup_verified=true`, `database_zero_verified=true`, `cleanup_required=false`, and `fielding_authorized=false`; it contains no invite ID or participant-linked value. Only this clean receipt may support copying its unchanged `tested_config_timestamp` into the public config. Production still requires the separate live validator and explicit production gate.
 
 ## PII-free hosted research export
 
@@ -194,17 +335,49 @@ python supabase/admin/decrypt_identity_export.py `
   --output (Join-Path $pilotPrivate "identity_roster.csv")
 ```
 
-The current process must contain the original `PII_ENCRYPTION_KEY_B64` and matching `PII_KEY_ID`. The tool requires Python's `cryptography` package, accepts files only below the selected external private root, rejects repository paths and overwrite, neutralizes spreadsheet-formula prefixes, and never prints identity rows. The decrypted CSV must follow the approved access and deletion policy. The committed `.private/` ignore rule is only an accidental-commit backstop, not an approved storage location.
+The current process must contain the original `PII_ENCRYPTION_KEY_B64` and matching `PII_KEY_ID`. The tool requires Python's `cryptography` package, accepts files only below the selected external private root, rejects repository paths and overwrite, neutralizes spreadsheet-formula prefixes, and never prints identity rows. The decrypted CSV must follow the PI-fixed access and deletion policy. The committed `.private/` ignore rule is only an accidental-commit backstop, not an authorized storage location.
+
+## PI-only individual withdrawal
+
+Never use the retention-cutoff tool for one person's request. `admin/delete_withdrawn_participant.py` supports either a canonical invitation UUID or a protected identity JSON file. Direct name/phone values are deliberately not accepted as command-line arguments.
+
+For identity lookup, create a UTF-8 JSON file containing exactly `name` and `phone` below the external private root and load `IDENTITY_HMAC_SECRET_B64` only into the current process. The tool reproduces the server's Unicode/phone normalization and keyed identity HMAC without decrypting or printing the database identity. Zero matches fail; multiple matches fail closed and require the invitation UUID.
+
+Always begin with a read-only preview. The request timestamp needs an explicit timezone, and the internal procedure version must match `withdrawal-vYYYY-MM-DD-rN` and not postdate the request:
+
+```powershell
+$requestReceivedAt = "2026-09-03T10:00:00+09:00"
+$withdrawalVersion = "withdrawal-v2026-09-03-r1"
+python -X utf8 supabase/admin/delete_withdrawn_participant.py `
+  --instrument-sha256 $instrumentHash `
+  --procedure-version $withdrawalVersion `
+  --request-received-at $requestReceivedAt `
+  --invite-id $inviteId `
+  --dry-run
+```
+
+For identity-file lookup, replace `--invite-id $inviteId` with:
+
+```powershell
+--private-root $pilotPrivate `
+--identity-file (Join-Path $pilotPrivate "withdrawal-request.private.json")
+```
+
+Review the counts and copy the complete opaque confirmation phrase printed by the preview. Re-run the same selector and parameters with `--confirm "EXACT PHRASE"` instead of `--dry-run`. The phrase binds the exact resolved invitation, instrument, procedure version, request time, and row counts but prints no participant/database identifier.
+
+Confirmed deletion uses a serializable transaction, locks the invitation first, revalidates every link, requires exactly one identity, one submission, and 12 ordered responses for a submitted invitation, unlinks the circular FK, deletes responses/submission/encrypted identity/invitation in dependency order, and verifies all target rows are absent. An unused invitation can be removed without pretending that identity or response rows existed. Any changed target, ambiguous identity, unexpected row count, or failed absence check rolls back.
+
+Only after successful absence verification does the same transaction insert one row into migration 003's `private.pilot_withdrawal_events`. That row retains the instrument, selector type, procedure version, timestamps, outcome, deletion counts, and verification result, but no selector or participant-linked value. The operation is irreversible; retain or dispose of the local request file according to the PI-fixed policy.
 
 ## PI-only retention deletion
 
-First archive any approved PII-free research export and determine the institutionally approved cutoff. The cutoff is strict: only submissions with `submitted_at` before it are in scope, and `Z` or a numeric timezone offset is mandatory. Preview the exact scope in a database-enforced read-only transaction:
+First archive any authorized PII-free research export and use the PI-fixed retention cutoff. The cutoff is strict: only submissions with `submitted_at` before it are in scope, and `Z` or a numeric timezone offset is mandatory. Preview the exact scope in a database-enforced read-only transaction:
 
 ```powershell
 $instrumentHash = (python -X utf8 -c "import json; print(json.load(open('docs/instrument.json', encoding='utf-8'))['instrument_sha256'])").Trim()
 python -X utf8 supabase/admin/delete_retained_pilot_data.py `
   --instrument-sha256 $instrumentHash `
-  --cutoff 2026-12-31T23:59:59+09:00 `
+  --cutoff 2026-11-01T00:00:00+09:00 `
   --dry-run
 ```
 
@@ -230,7 +403,7 @@ The wrapper waits for each child process and fails on its actual nonzero exit
 code; invoking `Code.exe` directly is an asynchronous GUI launch and must not
 be used as a release-gate result.
 
-The Python suite audits schema exposure, RLS/grants, the Edge-only boundary, encrypted identity separation and recovery, accidental committed secrets, 256-bit token generation, HMAC consistency, seed parity, external private-storage enforcement, exact invite-site URL validation, hosted export/collection, retention deletion transaction behavior, spreadsheet safety, and overwrite refusal. The WebCrypto suites check the shared frontend/backend canonical payload vector and normative request/cryptographic helpers.
+The Python suite audits schema exposure, RLS/grants, the Edge-only boundary, encrypted identity separation and recovery, migration 003's identifier-free audit shape, accidental committed secrets, exact-seven secret generation, 256-bit distinct keys, production/disposable invitation counts, HMAC consistency, fielding-gate confirmations and eligibility, seed parity, external private-storage enforcement, exact invite-site URL validation, hosted export/collection, individual-withdrawal and retention-deletion transaction behavior, spreadsheet safety, and overwrite refusal. The WebCrypto suites check the shared frontend/backend canonical payload vector and normative request/cryptographic helpers.
 
 Do not field if migrations, final instrument seed, Edge deployment, the
 backend core WebCrypto suite (Deno or the documented Node harness), or an

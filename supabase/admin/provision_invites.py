@@ -14,7 +14,7 @@ import re
 import secrets
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote, urlsplit
 
@@ -32,6 +32,10 @@ DEFAULT_SITE_URL = "https://khdouble.github.io/bok-stance-pilot-site/"
 EXPECTED_SITE_SCHEME = "https"
 EXPECTED_SITE_HOST = "khdouble.github.io"
 EXPECTED_SITE_PATH = "/bok-stance-pilot-site/"
+PRODUCTION_MODE = "production"
+DISPOSABLE_E2E_MODE = "disposable-e2e"
+PROVISIONING_MODES = (PRODUCTION_MODE, DISPOSABLE_E2E_MODE)
+DISPOSABLE_MAX_LIFETIME = timedelta(hours=24)
 
 
 def decode_key(value: str) -> bytes:
@@ -105,13 +109,34 @@ def provision(
     site_url: str,
     hmac_key: bytes,
     private_root: Path | None = None,
+    mode: str = PRODUCTION_MODE,
 ) -> tuple[Path, Path]:
     if not HASH_RE.fullmatch(instrument_sha256):
         raise ValueError("--instrument-sha256 must be a lowercase SHA-256 digest")
-    if len(assignment_codes) != 5 or len(set(assignment_codes)) != 5:
-        raise ValueError("exactly five unique --assignment-code values are required")
+    if mode not in PROVISIONING_MODES:
+        raise ValueError("provisioning mode is invalid")
+    expected_count = 5 if mode == PRODUCTION_MODE else 1
+    if (
+        len(assignment_codes) != expected_count
+        or len(set(assignment_codes)) != expected_count
+    ):
+        if mode == PRODUCTION_MODE:
+            raise ValueError(
+                "production mode requires exactly five unique --assignment-code values"
+            )
+        raise ValueError(
+            "disposable-e2e mode requires exactly one --assignment-code value"
+        )
     if any(not ASSIGNMENT_RE.fullmatch(code) for code in assignment_codes):
         raise ValueError("assignment codes may contain only letters, digits, underscore, and hyphen")
+    now = datetime.now(timezone.utc)
+    if expires_at <= now:
+        raise ValueError("invitation expiry must be in the future")
+    if (
+        mode == DISPOSABLE_E2E_MODE
+        and expires_at - now > DISPOSABLE_MAX_LIFETIME
+    ):
+        raise ValueError("disposable-e2e invitations must expire within 24 hours")
     canonical_site_url = validate_site_url(site_url)
 
     target = ensure_private_output(output, repository_root, private_root)
@@ -127,6 +152,7 @@ def provision(
         invite_id = str(uuid.uuid4())
         invite_url = f"{canonical_site_url}#invite={quote(token_text, safe='')}"
         invites.append({
+            "invite_id": invite_id,
             "assignment_code": assignment_code,
             "invite_token": token_text,
             "invite_url": invite_url,
@@ -148,6 +174,7 @@ def provision(
     seed_path = target / "invite_seed.private.sql"
     private_payload = {
         "schema_version": "1.0",
+        "provisioning_mode": mode,
         "created_at": created_text,
         "instrument_sha256": instrument_sha256,
         "warning": "CONFIDENTIAL: contains raw one-time invitation tokens; never commit or transmit as a batch.",
@@ -155,7 +182,12 @@ def provision(
     }
     private_path.write_text(json.dumps(private_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     seed_path.write_text(
-        "begin;\n\n"
+        (
+            "-- DISPOSABLE E2E INVITE; revoke and delete test data before production fielding.\n"
+            if mode == DISPOSABLE_E2E_MODE
+            else "-- PRODUCTION INVITATIONS; confidential operational material.\n"
+        )
+        + "begin;\n\n"
         "insert into private.pilot_invites (\n"
         "  invite_id, token_hmac, instrument_sha256, assignment_code, expires_at\n"
         ") values\n"
@@ -182,6 +214,15 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--instrument-sha256", required=True)
     result.add_argument("--expires-at", required=True, help="ISO-8601 timestamp with timezone")
     result.add_argument("--site-url", default=DEFAULT_SITE_URL)
+    result.add_argument(
+        "--mode",
+        choices=PROVISIONING_MODES,
+        default=PRODUCTION_MODE,
+        help=(
+            "production creates exactly five invitations; disposable-e2e creates "
+            "one short-lived invitation"
+        ),
+    )
     result.add_argument("--assignment-code", action="append", dest="assignment_codes")
     return result
 
@@ -192,7 +233,12 @@ def main(argv: list[str] | None = None) -> int:
     secret_value = os.environ.get("INVITE_HMAC_SECRET_B64", "")
     try:
         hmac_key = decode_key(secret_value)
-        assignment_codes = tuple(args.assignment_codes or DEFAULT_ASSIGNMENTS)
+        default_assignments = (
+            DEFAULT_ASSIGNMENTS
+            if args.mode == PRODUCTION_MODE
+            else (DEFAULT_ASSIGNMENTS[0],)
+        )
+        assignment_codes = tuple(args.assignment_codes or default_assignments)
         private_path, seed_path = provision(
             output=args.output,
             repository_root=repository_root,
@@ -202,11 +248,14 @@ def main(argv: list[str] | None = None) -> int:
             site_url=args.site_url,
             hmac_key=hmac_key,
             private_root=args.private_root,
+            mode=args.mode,
         )
     except (ValueError, FileExistsError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
-    print(f"Created 5 private invites in {private_path.parent}")
+    count = 5 if args.mode == PRODUCTION_MODE else 1
+    label = "production" if args.mode == PRODUCTION_MODE else "disposable E2E"
+    print(f"Created {count} {label} private invite(s) in {private_path.parent}")
     print(f"Raw links: {private_path.name} (not printed; do not commit)")
     print(f"Database seed: {seed_path.name} (contains HMAC digests only)")
     return 0

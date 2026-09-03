@@ -16,12 +16,16 @@
       <p class="eyebrow">Pilot privacy notice</p>
       <h1>개인정보 수집·이용 안내</h1>
       <div class="status error">
-        PENDING_PI — 이 문서는 연구책임자가 아래 표시값을 모두 확정하고
-        원격 제출 점검을 마치기 전에는 실제 동의문으로 사용할 수 없습니다.
+        HOLD — 원격 제출 E2E 점검이 아직 완료되지 않았고 fielding은 비활성화
+        상태입니다. 점검 완료 전에는 실제 동의문으로 사용할 수 없습니다.
       </div>
 
       <h2>동의문 버전</h2>
-      <p><strong>PENDING_PI — consent-vYYYY-MM-DD-rN 형식으로 입력</strong></p>
+      <p><strong>consent-v2026-09-03-r1</strong></p>
+      <p>
+        위 값은 내부 개인정보 안내문 개정번호이며 기관 윤리 심의 또는 승인
+        번호가 아닙니다.
+      </p>
 
       <h2>수집 목적</h2>
       <p>사전에 지정된 파일럿 참가자를 응답자료에서 구별하고 제출자료를 확인</p>
@@ -48,35 +52,33 @@
 
       <h2>보유기간</h2>
       <p>
-        <strong>PENDING_PI — 보유 종료일(YYYY-MM-DD)과 해당 날짜를 포함한
-        파기 문구 입력 필요</strong>
+        <strong>수집한 성명·휴대전화번호, 동의 기록 및 파일럿 응답자료는 2026-10-31까지 보유한 뒤 지체 없이 삭제합니다.</strong>
       </p>
 
       <h2>처리자와 문의</h2>
-      <p><strong>PENDING_PI — 연구책임자 표시명 입력 필요</strong></p>
-      <p><strong>PENDING_PI — 실제 문의·철회 이메일 입력 필요</strong></p>
+      <p><strong>개인정보 처리자: 김현학 국민대학교 교수</strong></p>
+      <p><strong>문의·철회 이메일: hyunhak.kim@kookmin.ac.kr</strong></p>
 
       <h2>동의 거부와 철회</h2>
       <p>
         개인정보 수집에 동의하지 않을 수 있으며, 동의하지 않으면 이 온라인
         파일럿에는 참여할 수 없습니다. 철회와 삭제 요청은 위 이메일로
         접수하며, 적용 절차와 검증 기록은
-        <strong>PENDING_PI — withdrawal-vYYYY-MM-DD-rN</strong>에 따릅니다.
+        <strong>withdrawal-v2026-09-03-r1</strong>에 따릅니다. 이 값은 내부
+        철회 절차 버전이며 기관 윤리 심의 또는 승인을 뜻하지 않습니다.
       </p>
 
       <h2>기관 검토</h2>
       <p>
-        기관 IRB 승인·면제·비대상 판단:
-        <strong>PENDING_PI — disposition:날짜·문서번호 형식의 판단 근거
-        또는 문서 참조 입력 필요</strong>
+        기관 IRB 승인·면제·비대상 판단: <strong>not_required</strong><br>
+        판단 근거: <strong>not_required:연구책임자 자체판단 기록 2026-09-03; 기관 심의·승인 문서 없음</strong>
       </p>
 
       <h2>외부 서비스</h2>
       <p>
         설문 화면은 GitHub Pages에서 제공하고 제출정보는 지정된 Supabase
         프로젝트에 저장하도록 설계했습니다. Supabase dashboard에서 확인한
-        실제 저장 region은 <strong>PENDING_PI — region code 입력 필요</strong>
-        입니다.
+        실제 저장 region은 <strong>ap-northeast-2</strong>입니다.
       </p>
       <p>
         GitHub Pages는 서비스 보안을 위해 방문자의 IP 주소를 기록할 수 있고,
