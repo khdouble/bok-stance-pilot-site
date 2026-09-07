@@ -23,6 +23,7 @@
   var activeStartedAt = null;
   var activeAssignmentId = null;
   var submitFailures = 0;
+  var tutorialComplete = false;
   var DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
   function byId(id) {
@@ -38,12 +39,14 @@
       "blockedPanel",
       "invitePanel",
       "identityPanel",
+      "tutorialPanel",
       "surveyPanel",
       "feedbackPanel",
       "reviewPanel",
       "donePanel"
     ].forEach(function (id) {
-      byId(id).hidden = id !== panelId;
+      var panel = byId(id);
+      if (panel) panel.hidden = id !== panelId;
     });
   }
 
@@ -238,7 +241,8 @@
     var fragment = window.location.hash.startsWith("#")
       ? window.location.hash.slice(1)
       : window.location.hash;
-    var token = new URLSearchParams(fragment).get("invite") || "";
+    var params = new URLSearchParams(fragment);
+    var token = params.get("preview") || params.get("invite") || "";
     if (token) {
       window.history.replaceState(
         null,
@@ -641,6 +645,29 @@
     });
   }
 
+  function renderTutorial() {
+    var tutorial = instrument.tutorial;
+    byId("tutorialTitle").textContent = tutorial.title;
+    byId("tutorialInstructions").textContent = tutorial.instructions;
+    var container = byId("tutorialItems");
+    container.replaceChildren();
+    tutorial.items.forEach(function (item, index) {
+      var article = document.createElement("article");
+      article.className = "notice";
+      var heading = document.createElement("strong");
+      heading.textContent = "연습 " + (index + 1);
+      var sentence = document.createElement("p");
+      sentence.className = "sentence";
+      sentence.textContent = item.sentence_text;
+      var explanation = document.createElement("p");
+      explanation.textContent = item.explanation;
+      article.appendChild(heading);
+      article.appendChild(sentence);
+      article.appendChild(explanation);
+      container.appendChild(article);
+    });
+    showOnly("tutorialPanel");
+  }
   function renderItem() {
     stopActiveTimer();
     var item = currentItem();
@@ -659,6 +686,9 @@
     byId("reasonCode").value = answer.reason_code || "";
     byId("reasonNote").value = answer.reason_note || "";
     byId("reasonNote").disabled = answer.reason_code !== "OTHER";
+    byId("itemQualityCode").value = answer.item_quality_code || "NONE";
+    byId("itemQualityNote").value = answer.item_quality_note || "";
+    byId("itemQualityNote").disabled = (answer.item_quality_code || "NONE") !== "OTHER";
     byId("previousItem").disabled = state.current_index === 0;
     byId("nextItem").textContent =
       state.current_index === 11 ? "피드백으로" : "다음";
@@ -676,6 +706,8 @@
       : null;
     answer.reason_code = byId("reasonCode").value;
     answer.reason_note = byId("reasonNote").value.trim();
+    answer.item_quality_code = byId("itemQualityCode").value || "NONE";
+    answer.item_quality_note = byId("itemQualityNote").value.trim();
     saveState();
   }
 
@@ -697,6 +729,12 @@
     }
     if (answer.reason_code !== "OTHER" && answer.reason_note) {
       return "이유 메모는 OTHER를 선택한 경우에만 입력해 주세요.";
+    }
+    if (answer.item_quality_code === "OTHER" && !answer.item_quality_note) {
+      return "문항 품질 의견에서 OTHER를 선택한 경우 메모를 입력해 주세요.";
+    }
+    if (answer.item_quality_code !== "OTHER" && answer.item_quality_note) {
+      return "문항 품질 메모는 OTHER를 선택한 경우에만 입력해 주세요.";
     }
     return "";
   }
@@ -773,6 +811,8 @@
         reason_code: answer.reason_code || "NONE",
         confidence: Number(answer.confidence),
         reason_note: answer.reason_code === "OTHER" ? answer.reason_note : "",
+        item_quality_code: answer.item_quality_code || "NONE",
+        item_quality_note: answer.item_quality_code === "OTHER" ? answer.item_quality_note : "",
         started_at: answer.started_at,
         finished_at: answer.finished_at,
         active_duration_seconds: Math.floor(
@@ -785,7 +825,7 @@
   function researchTextContainsIdentity() {
     var notes = responsePayload()
       .map(function (response) {
-        return response.reason_note;
+        return [response.reason_note, response.item_quality_note || ""].join("\\n");
       })
       .concat([
         state.feedback.zero_vs_99_explanation,
@@ -1056,6 +1096,8 @@
         reason_code: answer.reason_code || "NONE",
         confidence: answer.confidence,
         reason_note: answer.reason_code === "OTHER" ? answer.reason_note : "",
+        item_quality_code: answer.item_quality_code || "NONE",
+        item_quality_note: answer.item_quality_code === "OTHER" ? answer.item_quality_note : "",
         started_at: answer.started_at,
         finished_at: answer.finished_at,
         response_status: "COMPLETED",
@@ -1089,7 +1131,7 @@
       byId("inviteCode").value = "";
     });
 
-    byId("beginSurvey").addEventListener("click", function () {
+    byId("beginSurvey").addEventListener("click", async function () {
       var name = byId("participantName").value.trim();
       var phone = byId("participantPhone").value.replace(/\D/g, "");
       if (!name || name.length > 80) {
@@ -1105,6 +1147,39 @@
         return;
       }
       identity = { name: name, phone: phone };
+      if (!inviteToken && !ADMIN_MODE) {
+        if (!CONFIG.directEntryEnabled) {
+          setStatus("현재는 연구책임자 확인용 링크에서만 설문을 시작할 수 있습니다.", "error");
+          return;
+        }
+        var beginButton = byId("beginSurvey");
+        beginButton.disabled = true;
+        setStatus("참가자 정보를 확인하고 있습니다.", "info");
+        try {
+          var directResult = await apiRequest({
+            action: "direct_load",
+            instrument_sha256: instrument.instrument_sha256,
+            consent: {
+              accepted: true,
+              version: CONFIG.privacyNoticeVersion,
+              accepted_at: nowIso()
+            },
+            identity: identity
+          });
+          var directCode = directResult.assignment_code || directResult.pilot_rater_id;
+          if (!sameServerItems(directResult.items, assignmentFor(directCode))) {
+            throw new Error("server assignment mismatch");
+          }
+          inviteToken = directResult.access_token;
+          assignmentCode = directCode;
+        } catch (error) {
+          identity = { name: "", phone: "" };
+          setStatus("설문을 시작할 수 없습니다. 연구책임자에게 문의해 주세요.", "error");
+          return;
+        } finally {
+          beginButton.disabled = false;
+        }
+      }
       state = restoreState();
       state.session_started_at = state.session_started_at || nowIso();
       state.consent_accepted_at = state.consent_accepted_at || nowIso();
@@ -1119,13 +1194,31 @@
         setStatus(
           ADMIN_MODE
             ? "응답과 시간 기록은 현재 PI 테스트 세션의 메모리에만 유지됩니다."
-            : "응답은 이 기기에서 7일 동안만 복원 대상으로 임시저장됩니다.",
+            : "실제 BOK core 응답은 이 기기에서 7일 동안만 복원 대상으로 임시저장됩니다.",
           "info"
         );
-        renderItem();
+        tutorialComplete = false;
+        if (ADMIN_MODE) {
+          renderItem();
+        } else {
+          renderTutorial();
+        }
       }
     });
 
+    if (byId("beginCore")) {
+      byId("beginCore").addEventListener("click", function () {
+        tutorialComplete = true;
+        renderItem();
+      });
+    }
+    byId("itemQualityCode").addEventListener("change", function () {
+      var isOther = byId("itemQualityCode").value === "OTHER";
+      byId("itemQualityNote").disabled = !isOther;
+      if (!isOther) byId("itemQualityNote").value = "";
+      captureCurrentAnswer();
+    });
+    byId("itemQualityNote").addEventListener("input", captureCurrentAnswer);
     byId("stanceChoices").addEventListener("change", captureCurrentAnswer);
     byId("confidence").addEventListener("change", captureCurrentAnswer);
     byId("reasonCode").addEventListener("change", function () {
@@ -1385,6 +1478,8 @@
     byId("participantPhone").value = "01000000000";
     byId("consentAccepted").checked = true;
     byId("beginSurvey").click();
+    await new Promise(function (resolve) { window.setTimeout(resolve, 0); });
+    if (byId("beginCore")) byId("beginCore").click();
     var choices = [-2, -1, 0, 1, 2, 99];
     for (var index = 0; index < 12; index += 1) {
       var choice = choices[index % choices.length];
@@ -1437,13 +1532,13 @@
       return;
     }
 
-    if (!CONFIG.fieldingEnabled && !isLocalPreview()) {
+    if (!CONFIG.fieldingEnabled && !isLocalPreview() && !initialInviteToken) {
       failClosed(
         "현재 연구책임자의 개인정보 안내·보관기간 및 서버 점검이 완료되지 않아 배포가 잠겨 있습니다."
       );
       return;
     }
-    if (!configReady() && !isLocalPreview()) {
+    if (!configReady() && !isLocalPreview() && !initialInviteToken) {
       failClosed("개인정보 안내 필수항목이 확정되지 않았습니다.");
       return;
     }
@@ -1458,8 +1553,11 @@
 
     if (initialInviteToken) {
       await handleInvite(initialInviteToken);
+    } else if (CONFIG.fieldingEnabled && CONFIG.directEntryEnabled) {
+      setStatus("성명과 휴대전화번호를 입력해 설문을 시작해 주세요.", "info");
+      showOnly("identityPanel");
     } else {
-      setStatus("전달받은 개인별 초대 링크 또는 코드를 확인해 주세요.", "info");
+      setStatus("현재는 연구책임자 확인용 링크에서만 설문을 시작할 수 있습니다.", "info");
       showOnly("invitePanel");
     }
   }

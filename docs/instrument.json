@@ -1,11 +1,65 @@
 {
-  "instrument_sha256": "192b618e620c653d5419eb602dcff5ca3f5346896b07bb5e24485fbd81e69dad",
+  "instrument_sha256": "6cb5d63b5c4a764f9800bb1dd423f99b31b04d3a34854a011f0814a6550c5d41",
   "schema_version": "1.0",
-  "hosted_version": "v260903-pilot-hosted-2",
-  "source_offline_instrument_sha256": "b594a196eb7be720e57d974f4b5c6e4437b697e6ae20f01013e830af35707a51",
-  "dataset_role": "synthetic_usability_pilot",
+  "hosted_version": "v260908-r3-preview-1",
+  "source_offline_instrument_sha256": "de96c00e9f95a9035cfc54a1bf18cc0d24b3465f7b5edc05cd9669a3fbfa7dee",
+  "dataset_role": "r3_content_response_pilot",
   "excluded_from_analysis": true,
-  "analysis_exclusion_reason": "synthetic_usability_only_never_analysis",
+  "analysis_exclusion_reason": "r3_repilot_never_analysis",
+  "source_provenance": {
+    "canonical_corpus": "Sentiment/latent_stance_pipeline/00_contract/outputs/corpus_sentence_analysis.csv",
+    "canonical_corpus_sha256": "de96c00e9f95a9035cfc54a1bf18cc0d24b3465f7b5edc05cd9669a3fbfa7dee",
+    "selection_memo": "Sentiment/latent_stance_pipeline/02_annotation/pilot/pi_manual_test_item_revision_review_2026-09-07.md",
+    "selection_rule": "R3 approved shortlist; selected_panel_role empty, nonduplicate with main panel, legacy_candidate_692 false, correction_type unchanged; labels and AI outputs not consulted."
+  },
+  "tutorial": {
+    "title": "연습문항 (연구점수 미포함)",
+    "instructions": "아래 여섯 문항은 척도와 99 판단불가의 의미를 익히기 위한 연습입니다. 답변은 서버에 전송하거나 연구자료로 저장하지 않습니다.",
+    "items": [
+      {
+        "tutorial_item_id": "TUT_99_CONTEXT",
+        "sentence_text": "그 위험이 커질 경우에는 앞에서 언급한 쪽으로 통화정책을 조정해야 한다.",
+        "intended_choice": 99,
+        "intended_reason_code": "CONTEXT_NEEDED",
+        "explanation": "‘그 위험’과 ‘앞에서 언급한 쪽’의 지시대상이 문장 안에 없으므로, 99와 CONTEXT_NEEDED를 고르는 연습입니다."
+      },
+      {
+        "tutorial_item_id": "TUT_M1",
+        "sentence_text": "고용 회복이 분명해질 때까지 현재의 완화적 통화 여건을 이어가는 편이 적절하다.",
+        "intended_choice": -1,
+        "intended_reason_code": "NONE",
+        "explanation": "완화 기조를 유지한다는 표현은 -1의 예시입니다."
+      },
+      {
+        "tutorial_item_id": "TUT_P2",
+        "sentence_text": "지속되는 가격 상승압력을 낮추기 위해 이번 회의에서 정책금리를 0.50%포인트 더 높이기로 결정한다.",
+        "intended_choice": 2,
+        "intended_reason_code": "NONE",
+        "explanation": "정책금리를 직접 더 높이는 결정은 +2의 예시입니다."
+      },
+      {
+        "tutorial_item_id": "TUT_0",
+        "sentence_text": "생산 위축 우려와 가격 오름세 재확대 우려가 서로 상쇄되어 지금은 금리를 한 방향으로 움직일 근거가 없다.",
+        "intended_choice": 0,
+        "intended_reason_code": "NONE",
+        "explanation": "상반된 근거가 명시적으로 상쇄되어 중립으로 판단할 수 있으면 0입니다."
+      },
+      {
+        "tutorial_item_id": "TUT_M2",
+        "sentence_text": "수요의 급격한 위축을 막기 위해 이번 회의에서 정책금리를 0.50%포인트 더 낮추기로 결정한다.",
+        "intended_choice": -2,
+        "intended_reason_code": "NONE",
+        "explanation": "정책금리를 직접 더 낮추는 결정은 -2의 예시입니다."
+      },
+      {
+        "tutorial_item_id": "TUT_P1",
+        "sentence_text": "기조적 물가가 충분히 안정되기 전까지 제약적인 금융 여건을 그대로 유지하는 것이 바람직하다.",
+        "intended_choice": 1,
+        "intended_reason_code": "NONE",
+        "explanation": "제약적인 여건을 유지한다는 표현은 +1의 예시입니다."
+      }
+    ]
+  },
   "items_per_participant": 12,
   "stance_choices": [
     {
@@ -41,6 +95,15 @@
     "TERMINOLOGY",
     "OTHER"
   ],
+  "item_quality_codes": [
+    "NONE",
+    "TOO_OBVIOUS",
+    "UNNATURAL_OR_IMPOSSIBLE",
+    "POLICY_INSTRUMENT_AMBIGUITY",
+    "CONTEXT_REFERENCE_AMBIGUITY",
+    "UI_PROBLEM",
+    "OTHER"
+  ],
   "confidence_values": [
     1,
     2,
@@ -51,453 +114,452 @@
   "assignments": {
     "PILOT_R01": [
       {
-        "assignment_id": "USPILOT_R01_01",
+        "assignment_id": "H3_PILOT_R01_01",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 1,
-        "pilot_item_id": "USP_011",
-        "sentence_text": "기조적 물가가 충분히 안정되기 전까지 제약적인 금융 여건을 그대로 유지하는 것이 바람직하다."
+        "pilot_item_id": "19990304_S002",
+        "sentence_text": "다만 엔화 약세 등으로 인한 수출부진 가능성, 기업 구조조정과정에서의 노사갈등 우려 등 대내외 불안요인이 잠재해 있음"
       },
       {
-        "assignment_id": "USPILOT_R01_02",
+        "assignment_id": "H3_PILOT_R01_02",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 2,
-        "pilot_item_id": "USP_010",
-        "sentence_text": "경기 대응을 위해 금리 인상과 금리 인하를 모두 즉시 시행할 필요가 있다."
+        "pilot_item_id": "20010508_S005",
+        "sentence_text": "앞으로도 물가 및 경기, 금융시장 상황, 대외여건 변화 등을 종합적으로 감안하여 경기회복을 뒷받침하면서도 수요면에서 물가압력이 발생하지 않도록 통화정책을 운용할 것이며 특히 최근의 물가상승세가 일반의 인플레기대심리 확산으로 이어지지 않도록 유의할 것임"
       },
       {
-        "assignment_id": "USPILOT_R01_03",
+        "assignment_id": "H3_PILOT_R01_03",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 3,
-        "pilot_item_id": "USP_008",
-        "sentence_text": "과도한 시중 유동성을 회수하기 위해 다음 주부터 중앙은행의 정례 자금공급 규모를 즉시 축소한다."
+        "pilot_item_id": "20040812_S002",
+        "sentence_text": "물가면에서는 국제유가 급등 등의 영향으로 상승압력이 높아지고 있으나 내수 저조로 수요압력이 미약하여 근원인플레이션율은 목표범위 내에서 유지되고 있음"
       },
       {
-        "assignment_id": "USPILOT_R01_04",
+        "assignment_id": "H3_PILOT_R01_04",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 4,
-        "pilot_item_id": "USP_003",
-        "sentence_text": "지속되는 가격 상승압력을 낮추기 위해 이번 회의에서 정책금리를 0.50%포인트 더 높이기로 결정한다."
+        "pilot_item_id": "20060309_S001",
+        "sentence_text": "실물경제는 건설투자의 증가가 미약하나 수출이 견실한 증가세를 유지하고 민간소비가 회복세를 지속하는 가운데 설비투자도 증가세를 이어가고 있음"
       },
       {
-        "assignment_id": "USPILOT_R01_05",
+        "assignment_id": "H3_PILOT_R01_05",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 5,
-        "pilot_item_id": "USP_004",
-        "sentence_text": "생산 위축 우려와 가격 오름세 재확대 우려가 서로 상쇄되어 지금은 금리를 한 방향으로 움직일 근거가 없다."
+        "pilot_item_id": "20071207_S004",
+        "sentence_text": "소비자물가는 고유가의 영향 등으로 상승세가 확대되는 모습을 보이고 있으며 부동산가격은 오름세가 제한되고 있음"
       },
       {
-        "assignment_id": "USPILOT_R01_06",
+        "assignment_id": "H3_PILOT_R01_06",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 6,
-        "pilot_item_id": "USP_006",
-        "sentence_text": "신용 팽창이 이어지는 만큼 다음 정책 변화의 무게중심은 긴축 쪽에 두어야 한다."
+        "pilot_item_id": "20090409_S006",
+        "sentence_text": "앞으로 통화정책은 당분간 금융완화기조를 유지하면서 경기의 과도한 위축을 방지하고 금융시장 안정을 도모하는 데 주안점을 두고 운용해 나갈 것임"
       },
       {
-        "assignment_id": "USPILOT_R01_07",
+        "assignment_id": "H3_PILOT_R01_07",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 7,
-        "pilot_item_id": "USP_005",
-        "sentence_text": "단기자금시장의 경색을 풀기 위해 다음 주부터 금융기관에 공급하는 유동성 규모를 즉시 늘린다."
+        "pilot_item_id": "20111013_S008",
+        "sentence_text": "앞으로 농산물가격 하락 및 전년도로부터의 기저효과 등이 물가상승률을 낮추는 요인으로 작용하겠으나, 계속 높게 유지되고 있는 인플레이션 기대심리 등으로 물가상승률의 하락 속도는 완만할 것으로 예상된다."
       },
       {
-        "assignment_id": "USPILOT_R01_08",
+        "assignment_id": "H3_PILOT_R01_08",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 8,
-        "pilot_item_id": "USP_009",
-        "sentence_text": "수요의 급격한 위축을 막기 위해 이번 회의에서 정책금리를 0.50%포인트 더 낮추기로 결정한다."
+        "pilot_item_id": "20120608_S005",
+        "sentence_text": "국내경제를 보면, 수출이 대체로 전년도 수준을 유지하는 가운데 소비와 설비투자가 소폭 증가로 전환하면서 미약하나마 성장세는 이어지고 있다."
       },
       {
-        "assignment_id": "USPILOT_R01_09",
+        "assignment_id": "H3_PILOT_R01_09",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 9,
-        "pilot_item_id": "USP_012",
-        "sentence_text": "경기 하방위험이 더 커진다면 앞으로의 조정에서는 완화 가능성을 우선 검토해야 한다."
+        "pilot_item_id": "20180524_S007",
+        "sentence_text": "앞으로 국내경제의 성장 흐름은 지난 4월 전망 경로와 대체로 부합할 것으로 예상된다."
       },
       {
-        "assignment_id": "USPILOT_R01_10",
+        "assignment_id": "H3_PILOT_R01_10",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 10,
-        "pilot_item_id": "USP_007",
-        "sentence_text": "현재 자료는 금리를 올려야 할 이유와 내려야 할 이유를 비슷한 크기로 보여 준다."
+        "pilot_item_id": "20200716_S011",
+        "sentence_text": "앞으로 소비자물가 상승률과 근원인플레이션율은 국제유가 하락의 영향 지속, 수요측면에서의 낮은 물가상승압력 등으로 0%대 초반 수준에 머무를 것으로 보인다."
       },
       {
-        "assignment_id": "USPILOT_R01_11",
+        "assignment_id": "H3_PILOT_R01_11",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 11,
-        "pilot_item_id": "USP_002",
-        "sentence_text": "고용 회복이 분명해질 때까지 현재의 완화적 통화 여건을 이어가는 편이 적절하다."
+        "pilot_item_id": "20240412_S018",
+        "sentence_text": "국내경제는 성장세가 개선 흐름을 지속하는 가운데 근원물가 상승률의 둔화 추세가 이어질 것으로 예상되지만 소비자물가 전망과 관련한 불확실성이 높기 때문에 물가가 목표수준으로 수렴할 것으로 확신하기는 아직 이른 상황이다."
       },
       {
-        "assignment_id": "USPILOT_R01_12",
+        "assignment_id": "H3_PILOT_R01_12",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 12,
-        "pilot_item_id": "USP_001",
-        "sentence_text": "그 위험이 커질 경우에는 앞에서 언급한 쪽으로 통화정책을 조정해야 한다."
+        "pilot_item_id": "20260410_S016",
+        "sentence_text": "향후 물가경로는 국제유가 및 환율 움직임, 정부 물가안정 대책의 효과, 비용상승의 파급 정도 등과 관련한 불확실성이 매우 높은 상황이다."
       }
     ],
     "PILOT_R02": [
       {
-        "assignment_id": "USPILOT_R02_01",
+        "assignment_id": "H3_PILOT_R02_01",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 1,
-        "pilot_item_id": "USP_007",
-        "sentence_text": "현재 자료는 금리를 올려야 할 이유와 내려야 할 이유를 비슷한 크기로 보여 준다."
+        "pilot_item_id": "20060309_S001",
+        "sentence_text": "실물경제는 건설투자의 증가가 미약하나 수출이 견실한 증가세를 유지하고 민간소비가 회복세를 지속하는 가운데 설비투자도 증가세를 이어가고 있음"
       },
       {
-        "assignment_id": "USPILOT_R02_02",
+        "assignment_id": "H3_PILOT_R02_02",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 2,
-        "pilot_item_id": "USP_009",
-        "sentence_text": "수요의 급격한 위축을 막기 위해 이번 회의에서 정책금리를 0.50%포인트 더 낮추기로 결정한다."
+        "pilot_item_id": "20200716_S011",
+        "sentence_text": "앞으로 소비자물가 상승률과 근원인플레이션율은 국제유가 하락의 영향 지속, 수요측면에서의 낮은 물가상승압력 등으로 0%대 초반 수준에 머무를 것으로 보인다."
       },
       {
-        "assignment_id": "USPILOT_R02_03",
+        "assignment_id": "H3_PILOT_R02_03",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 3,
-        "pilot_item_id": "USP_002",
-        "sentence_text": "고용 회복이 분명해질 때까지 현재의 완화적 통화 여건을 이어가는 편이 적절하다."
+        "pilot_item_id": "20010508_S005",
+        "sentence_text": "앞으로도 물가 및 경기, 금융시장 상황, 대외여건 변화 등을 종합적으로 감안하여 경기회복을 뒷받침하면서도 수요면에서 물가압력이 발생하지 않도록 통화정책을 운용할 것이며 특히 최근의 물가상승세가 일반의 인플레기대심리 확산으로 이어지지 않도록 유의할 것임"
       },
       {
-        "assignment_id": "USPILOT_R02_04",
+        "assignment_id": "H3_PILOT_R02_04",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 4,
-        "pilot_item_id": "USP_006",
-        "sentence_text": "신용 팽창이 이어지는 만큼 다음 정책 변화의 무게중심은 긴축 쪽에 두어야 한다."
+        "pilot_item_id": "20240412_S018",
+        "sentence_text": "국내경제는 성장세가 개선 흐름을 지속하는 가운데 근원물가 상승률의 둔화 추세가 이어질 것으로 예상되지만 소비자물가 전망과 관련한 불확실성이 높기 때문에 물가가 목표수준으로 수렴할 것으로 확신하기는 아직 이른 상황이다."
       },
       {
-        "assignment_id": "USPILOT_R02_05",
+        "assignment_id": "H3_PILOT_R02_05",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 5,
-        "pilot_item_id": "USP_012",
-        "sentence_text": "경기 하방위험이 더 커진다면 앞으로의 조정에서는 완화 가능성을 우선 검토해야 한다."
+        "pilot_item_id": "20120608_S005",
+        "sentence_text": "국내경제를 보면, 수출이 대체로 전년도 수준을 유지하는 가운데 소비와 설비투자가 소폭 증가로 전환하면서 미약하나마 성장세는 이어지고 있다."
       },
       {
-        "assignment_id": "USPILOT_R02_06",
+        "assignment_id": "H3_PILOT_R02_06",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 6,
-        "pilot_item_id": "USP_001",
-        "sentence_text": "그 위험이 커질 경우에는 앞에서 언급한 쪽으로 통화정책을 조정해야 한다."
+        "pilot_item_id": "19990304_S002",
+        "sentence_text": "다만 엔화 약세 등으로 인한 수출부진 가능성, 기업 구조조정과정에서의 노사갈등 우려 등 대내외 불안요인이 잠재해 있음"
       },
       {
-        "assignment_id": "USPILOT_R02_07",
+        "assignment_id": "H3_PILOT_R02_07",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 7,
-        "pilot_item_id": "USP_010",
-        "sentence_text": "경기 대응을 위해 금리 인상과 금리 인하를 모두 즉시 시행할 필요가 있다."
+        "pilot_item_id": "20260410_S016",
+        "sentence_text": "향후 물가경로는 국제유가 및 환율 움직임, 정부 물가안정 대책의 효과, 비용상승의 파급 정도 등과 관련한 불확실성이 매우 높은 상황이다."
       },
       {
-        "assignment_id": "USPILOT_R02_08",
+        "assignment_id": "H3_PILOT_R02_08",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 8,
-        "pilot_item_id": "USP_004",
-        "sentence_text": "생산 위축 우려와 가격 오름세 재확대 우려가 서로 상쇄되어 지금은 금리를 한 방향으로 움직일 근거가 없다."
+        "pilot_item_id": "20040812_S002",
+        "sentence_text": "물가면에서는 국제유가 급등 등의 영향으로 상승압력이 높아지고 있으나 내수 저조로 수요압력이 미약하여 근원인플레이션율은 목표범위 내에서 유지되고 있음"
       },
       {
-        "assignment_id": "USPILOT_R02_09",
+        "assignment_id": "H3_PILOT_R02_09",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 9,
-        "pilot_item_id": "USP_005",
-        "sentence_text": "단기자금시장의 경색을 풀기 위해 다음 주부터 금융기관에 공급하는 유동성 규모를 즉시 늘린다."
+        "pilot_item_id": "20180524_S007",
+        "sentence_text": "앞으로 국내경제의 성장 흐름은 지난 4월 전망 경로와 대체로 부합할 것으로 예상된다."
       },
       {
-        "assignment_id": "USPILOT_R02_10",
+        "assignment_id": "H3_PILOT_R02_10",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 10,
-        "pilot_item_id": "USP_011",
-        "sentence_text": "기조적 물가가 충분히 안정되기 전까지 제약적인 금융 여건을 그대로 유지하는 것이 바람직하다."
+        "pilot_item_id": "20071207_S004",
+        "sentence_text": "소비자물가는 고유가의 영향 등으로 상승세가 확대되는 모습을 보이고 있으며 부동산가격은 오름세가 제한되고 있음"
       },
       {
-        "assignment_id": "USPILOT_R02_11",
+        "assignment_id": "H3_PILOT_R02_11",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 11,
-        "pilot_item_id": "USP_008",
-        "sentence_text": "과도한 시중 유동성을 회수하기 위해 다음 주부터 중앙은행의 정례 자금공급 규모를 즉시 축소한다."
+        "pilot_item_id": "20111013_S008",
+        "sentence_text": "앞으로 농산물가격 하락 및 전년도로부터의 기저효과 등이 물가상승률을 낮추는 요인으로 작용하겠으나, 계속 높게 유지되고 있는 인플레이션 기대심리 등으로 물가상승률의 하락 속도는 완만할 것으로 예상된다."
       },
       {
-        "assignment_id": "USPILOT_R02_12",
+        "assignment_id": "H3_PILOT_R02_12",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 12,
-        "pilot_item_id": "USP_003",
-        "sentence_text": "지속되는 가격 상승압력을 낮추기 위해 이번 회의에서 정책금리를 0.50%포인트 더 높이기로 결정한다."
+        "pilot_item_id": "20090409_S006",
+        "sentence_text": "앞으로 통화정책은 당분간 금융완화기조를 유지하면서 경기의 과도한 위축을 방지하고 금융시장 안정을 도모하는 데 주안점을 두고 운용해 나갈 것임"
       }
     ],
     "PILOT_R03": [
       {
-        "assignment_id": "USPILOT_R03_01",
+        "assignment_id": "H3_PILOT_R03_01",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 1,
-        "pilot_item_id": "USP_007",
-        "sentence_text": "현재 자료는 금리를 올려야 할 이유와 내려야 할 이유를 비슷한 크기로 보여 준다."
+        "pilot_item_id": "20111013_S008",
+        "sentence_text": "앞으로 농산물가격 하락 및 전년도로부터의 기저효과 등이 물가상승률을 낮추는 요인으로 작용하겠으나, 계속 높게 유지되고 있는 인플레이션 기대심리 등으로 물가상승률의 하락 속도는 완만할 것으로 예상된다."
       },
       {
-        "assignment_id": "USPILOT_R03_02",
+        "assignment_id": "H3_PILOT_R03_02",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 2,
-        "pilot_item_id": "USP_005",
-        "sentence_text": "단기자금시장의 경색을 풀기 위해 다음 주부터 금융기관에 공급하는 유동성 규모를 즉시 늘린다."
+        "pilot_item_id": "19990304_S002",
+        "sentence_text": "다만 엔화 약세 등으로 인한 수출부진 가능성, 기업 구조조정과정에서의 노사갈등 우려 등 대내외 불안요인이 잠재해 있음"
       },
       {
-        "assignment_id": "USPILOT_R03_03",
+        "assignment_id": "H3_PILOT_R03_03",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 3,
-        "pilot_item_id": "USP_009",
-        "sentence_text": "수요의 급격한 위축을 막기 위해 이번 회의에서 정책금리를 0.50%포인트 더 낮추기로 결정한다."
+        "pilot_item_id": "20240412_S018",
+        "sentence_text": "국내경제는 성장세가 개선 흐름을 지속하는 가운데 근원물가 상승률의 둔화 추세가 이어질 것으로 예상되지만 소비자물가 전망과 관련한 불확실성이 높기 때문에 물가가 목표수준으로 수렴할 것으로 확신하기는 아직 이른 상황이다."
       },
       {
-        "assignment_id": "USPILOT_R03_04",
+        "assignment_id": "H3_PILOT_R03_04",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 4,
-        "pilot_item_id": "USP_008",
-        "sentence_text": "과도한 시중 유동성을 회수하기 위해 다음 주부터 중앙은행의 정례 자금공급 규모를 즉시 축소한다."
+        "pilot_item_id": "20071207_S004",
+        "sentence_text": "소비자물가는 고유가의 영향 등으로 상승세가 확대되는 모습을 보이고 있으며 부동산가격은 오름세가 제한되고 있음"
       },
       {
-        "assignment_id": "USPILOT_R03_05",
+        "assignment_id": "H3_PILOT_R03_05",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 5,
-        "pilot_item_id": "USP_002",
-        "sentence_text": "고용 회복이 분명해질 때까지 현재의 완화적 통화 여건을 이어가는 편이 적절하다."
+        "pilot_item_id": "20120608_S005",
+        "sentence_text": "국내경제를 보면, 수출이 대체로 전년도 수준을 유지하는 가운데 소비와 설비투자가 소폭 증가로 전환하면서 미약하나마 성장세는 이어지고 있다."
       },
       {
-        "assignment_id": "USPILOT_R03_06",
+        "assignment_id": "H3_PILOT_R03_06",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 6,
-        "pilot_item_id": "USP_012",
-        "sentence_text": "경기 하방위험이 더 커진다면 앞으로의 조정에서는 완화 가능성을 우선 검토해야 한다."
+        "pilot_item_id": "20040812_S002",
+        "sentence_text": "물가면에서는 국제유가 급등 등의 영향으로 상승압력이 높아지고 있으나 내수 저조로 수요압력이 미약하여 근원인플레이션율은 목표범위 내에서 유지되고 있음"
       },
       {
-        "assignment_id": "USPILOT_R03_07",
+        "assignment_id": "H3_PILOT_R03_07",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 7,
-        "pilot_item_id": "USP_011",
-        "sentence_text": "기조적 물가가 충분히 안정되기 전까지 제약적인 금융 여건을 그대로 유지하는 것이 바람직하다."
+        "pilot_item_id": "20260410_S016",
+        "sentence_text": "향후 물가경로는 국제유가 및 환율 움직임, 정부 물가안정 대책의 효과, 비용상승의 파급 정도 등과 관련한 불확실성이 매우 높은 상황이다."
       },
       {
-        "assignment_id": "USPILOT_R03_08",
+        "assignment_id": "H3_PILOT_R03_08",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 8,
-        "pilot_item_id": "USP_003",
-        "sentence_text": "지속되는 가격 상승압력을 낮추기 위해 이번 회의에서 정책금리를 0.50%포인트 더 높이기로 결정한다."
+        "pilot_item_id": "20010508_S005",
+        "sentence_text": "앞으로도 물가 및 경기, 금융시장 상황, 대외여건 변화 등을 종합적으로 감안하여 경기회복을 뒷받침하면서도 수요면에서 물가압력이 발생하지 않도록 통화정책을 운용할 것이며 특히 최근의 물가상승세가 일반의 인플레기대심리 확산으로 이어지지 않도록 유의할 것임"
       },
       {
-        "assignment_id": "USPILOT_R03_09",
+        "assignment_id": "H3_PILOT_R03_09",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 9,
-        "pilot_item_id": "USP_001",
-        "sentence_text": "그 위험이 커질 경우에는 앞에서 언급한 쪽으로 통화정책을 조정해야 한다."
+        "pilot_item_id": "20200716_S011",
+        "sentence_text": "앞으로 소비자물가 상승률과 근원인플레이션율은 국제유가 하락의 영향 지속, 수요측면에서의 낮은 물가상승압력 등으로 0%대 초반 수준에 머무를 것으로 보인다."
       },
       {
-        "assignment_id": "USPILOT_R03_10",
+        "assignment_id": "H3_PILOT_R03_10",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 10,
-        "pilot_item_id": "USP_006",
-        "sentence_text": "신용 팽창이 이어지는 만큼 다음 정책 변화의 무게중심은 긴축 쪽에 두어야 한다."
+        "pilot_item_id": "20060309_S001",
+        "sentence_text": "실물경제는 건설투자의 증가가 미약하나 수출이 견실한 증가세를 유지하고 민간소비가 회복세를 지속하는 가운데 설비투자도 증가세를 이어가고 있음"
       },
       {
-        "assignment_id": "USPILOT_R03_11",
+        "assignment_id": "H3_PILOT_R03_11",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 11,
-        "pilot_item_id": "USP_004",
-        "sentence_text": "생산 위축 우려와 가격 오름세 재확대 우려가 서로 상쇄되어 지금은 금리를 한 방향으로 움직일 근거가 없다."
+        "pilot_item_id": "20090409_S006",
+        "sentence_text": "앞으로 통화정책은 당분간 금융완화기조를 유지하면서 경기의 과도한 위축을 방지하고 금융시장 안정을 도모하는 데 주안점을 두고 운용해 나갈 것임"
       },
       {
-        "assignment_id": "USPILOT_R03_12",
+        "assignment_id": "H3_PILOT_R03_12",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 12,
-        "pilot_item_id": "USP_010",
-        "sentence_text": "경기 대응을 위해 금리 인상과 금리 인하를 모두 즉시 시행할 필요가 있다."
+        "pilot_item_id": "20180524_S007",
+        "sentence_text": "앞으로 국내경제의 성장 흐름은 지난 4월 전망 경로와 대체로 부합할 것으로 예상된다."
       }
     ],
     "PILOT_R04": [
       {
-        "assignment_id": "USPILOT_R04_01",
+        "assignment_id": "H3_PILOT_R04_01",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 1,
-        "pilot_item_id": "USP_010",
-        "sentence_text": "경기 대응을 위해 금리 인상과 금리 인하를 모두 즉시 시행할 필요가 있다."
+        "pilot_item_id": "20180524_S007",
+        "sentence_text": "앞으로 국내경제의 성장 흐름은 지난 4월 전망 경로와 대체로 부합할 것으로 예상된다."
       },
       {
-        "assignment_id": "USPILOT_R04_02",
+        "assignment_id": "H3_PILOT_R04_02",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 2,
-        "pilot_item_id": "USP_001",
-        "sentence_text": "그 위험이 커질 경우에는 앞에서 언급한 쪽으로 통화정책을 조정해야 한다."
+        "pilot_item_id": "20090409_S006",
+        "sentence_text": "앞으로 통화정책은 당분간 금융완화기조를 유지하면서 경기의 과도한 위축을 방지하고 금융시장 안정을 도모하는 데 주안점을 두고 운용해 나갈 것임"
       },
       {
-        "assignment_id": "USPILOT_R04_03",
+        "assignment_id": "H3_PILOT_R04_03",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 3,
-        "pilot_item_id": "USP_012",
-        "sentence_text": "경기 하방위험이 더 커진다면 앞으로의 조정에서는 완화 가능성을 우선 검토해야 한다."
+        "pilot_item_id": "20060309_S001",
+        "sentence_text": "실물경제는 건설투자의 증가가 미약하나 수출이 견실한 증가세를 유지하고 민간소비가 회복세를 지속하는 가운데 설비투자도 증가세를 이어가고 있음"
       },
       {
-        "assignment_id": "USPILOT_R04_04",
+        "assignment_id": "H3_PILOT_R04_04",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 4,
-        "pilot_item_id": "USP_006",
-        "sentence_text": "신용 팽창이 이어지는 만큼 다음 정책 변화의 무게중심은 긴축 쪽에 두어야 한다."
+        "pilot_item_id": "20260410_S016",
+        "sentence_text": "향후 물가경로는 국제유가 및 환율 움직임, 정부 물가안정 대책의 효과, 비용상승의 파급 정도 등과 관련한 불확실성이 매우 높은 상황이다."
       },
       {
-        "assignment_id": "USPILOT_R04_05",
+        "assignment_id": "H3_PILOT_R04_05",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 5,
-        "pilot_item_id": "USP_004",
-        "sentence_text": "생산 위축 우려와 가격 오름세 재확대 우려가 서로 상쇄되어 지금은 금리를 한 방향으로 움직일 근거가 없다."
+        "pilot_item_id": "20040812_S002",
+        "sentence_text": "물가면에서는 국제유가 급등 등의 영향으로 상승압력이 높아지고 있으나 내수 저조로 수요압력이 미약하여 근원인플레이션율은 목표범위 내에서 유지되고 있음"
       },
       {
-        "assignment_id": "USPILOT_R04_06",
+        "assignment_id": "H3_PILOT_R04_06",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 6,
-        "pilot_item_id": "USP_005",
-        "sentence_text": "단기자금시장의 경색을 풀기 위해 다음 주부터 금융기관에 공급하는 유동성 규모를 즉시 늘린다."
+        "pilot_item_id": "20111013_S008",
+        "sentence_text": "앞으로 농산물가격 하락 및 전년도로부터의 기저효과 등이 물가상승률을 낮추는 요인으로 작용하겠으나, 계속 높게 유지되고 있는 인플레이션 기대심리 등으로 물가상승률의 하락 속도는 완만할 것으로 예상된다."
       },
       {
-        "assignment_id": "USPILOT_R04_07",
+        "assignment_id": "H3_PILOT_R04_07",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 7,
-        "pilot_item_id": "USP_011",
-        "sentence_text": "기조적 물가가 충분히 안정되기 전까지 제약적인 금융 여건을 그대로 유지하는 것이 바람직하다."
+        "pilot_item_id": "19990304_S002",
+        "sentence_text": "다만 엔화 약세 등으로 인한 수출부진 가능성, 기업 구조조정과정에서의 노사갈등 우려 등 대내외 불안요인이 잠재해 있음"
       },
       {
-        "assignment_id": "USPILOT_R04_08",
+        "assignment_id": "H3_PILOT_R04_08",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 8,
-        "pilot_item_id": "USP_007",
-        "sentence_text": "현재 자료는 금리를 올려야 할 이유와 내려야 할 이유를 비슷한 크기로 보여 준다."
+        "pilot_item_id": "20200716_S011",
+        "sentence_text": "앞으로 소비자물가 상승률과 근원인플레이션율은 국제유가 하락의 영향 지속, 수요측면에서의 낮은 물가상승압력 등으로 0%대 초반 수준에 머무를 것으로 보인다."
       },
       {
-        "assignment_id": "USPILOT_R04_09",
+        "assignment_id": "H3_PILOT_R04_09",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 9,
-        "pilot_item_id": "USP_003",
-        "sentence_text": "지속되는 가격 상승압력을 낮추기 위해 이번 회의에서 정책금리를 0.50%포인트 더 높이기로 결정한다."
+        "pilot_item_id": "20071207_S004",
+        "sentence_text": "소비자물가는 고유가의 영향 등으로 상승세가 확대되는 모습을 보이고 있으며 부동산가격은 오름세가 제한되고 있음"
       },
       {
-        "assignment_id": "USPILOT_R04_10",
+        "assignment_id": "H3_PILOT_R04_10",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 10,
-        "pilot_item_id": "USP_002",
-        "sentence_text": "고용 회복이 분명해질 때까지 현재의 완화적 통화 여건을 이어가는 편이 적절하다."
+        "pilot_item_id": "20240412_S018",
+        "sentence_text": "국내경제는 성장세가 개선 흐름을 지속하는 가운데 근원물가 상승률의 둔화 추세가 이어질 것으로 예상되지만 소비자물가 전망과 관련한 불확실성이 높기 때문에 물가가 목표수준으로 수렴할 것으로 확신하기는 아직 이른 상황이다."
       },
       {
-        "assignment_id": "USPILOT_R04_11",
+        "assignment_id": "H3_PILOT_R04_11",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 11,
-        "pilot_item_id": "USP_008",
-        "sentence_text": "과도한 시중 유동성을 회수하기 위해 다음 주부터 중앙은행의 정례 자금공급 규모를 즉시 축소한다."
+        "pilot_item_id": "20010508_S005",
+        "sentence_text": "앞으로도 물가 및 경기, 금융시장 상황, 대외여건 변화 등을 종합적으로 감안하여 경기회복을 뒷받침하면서도 수요면에서 물가압력이 발생하지 않도록 통화정책을 운용할 것이며 특히 최근의 물가상승세가 일반의 인플레기대심리 확산으로 이어지지 않도록 유의할 것임"
       },
       {
-        "assignment_id": "USPILOT_R04_12",
+        "assignment_id": "H3_PILOT_R04_12",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 12,
-        "pilot_item_id": "USP_009",
-        "sentence_text": "수요의 급격한 위축을 막기 위해 이번 회의에서 정책금리를 0.50%포인트 더 낮추기로 결정한다."
+        "pilot_item_id": "20120608_S005",
+        "sentence_text": "국내경제를 보면, 수출이 대체로 전년도 수준을 유지하는 가운데 소비와 설비투자가 소폭 증가로 전환하면서 미약하나마 성장세는 이어지고 있다."
       }
     ],
     "PILOT_R05": [
       {
-        "assignment_id": "USPILOT_R05_01",
+        "assignment_id": "H3_PILOT_R05_01",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 1,
-        "pilot_item_id": "USP_007",
-        "sentence_text": "현재 자료는 금리를 올려야 할 이유와 내려야 할 이유를 비슷한 크기로 보여 준다."
+        "pilot_item_id": "20240412_S018",
+        "sentence_text": "국내경제는 성장세가 개선 흐름을 지속하는 가운데 근원물가 상승률의 둔화 추세가 이어질 것으로 예상되지만 소비자물가 전망과 관련한 불확실성이 높기 때문에 물가가 목표수준으로 수렴할 것으로 확신하기는 아직 이른 상황이다."
       },
       {
-        "assignment_id": "USPILOT_R05_02",
+        "assignment_id": "H3_PILOT_R05_02",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 2,
-        "pilot_item_id": "USP_002",
-        "sentence_text": "고용 회복이 분명해질 때까지 현재의 완화적 통화 여건을 이어가는 편이 적절하다."
+        "pilot_item_id": "20120608_S005",
+        "sentence_text": "국내경제를 보면, 수출이 대체로 전년도 수준을 유지하는 가운데 소비와 설비투자가 소폭 증가로 전환하면서 미약하나마 성장세는 이어지고 있다."
       },
       {
-        "assignment_id": "USPILOT_R05_03",
+        "assignment_id": "H3_PILOT_R05_03",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 3,
-        "pilot_item_id": "USP_011",
-        "sentence_text": "기조적 물가가 충분히 안정되기 전까지 제약적인 금융 여건을 그대로 유지하는 것이 바람직하다."
+        "pilot_item_id": "20071207_S004",
+        "sentence_text": "소비자물가는 고유가의 영향 등으로 상승세가 확대되는 모습을 보이고 있으며 부동산가격은 오름세가 제한되고 있음"
       },
       {
-        "assignment_id": "USPILOT_R05_04",
+        "assignment_id": "H3_PILOT_R05_04",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 4,
-        "pilot_item_id": "USP_012",
-        "sentence_text": "경기 하방위험이 더 커진다면 앞으로의 조정에서는 완화 가능성을 우선 검토해야 한다."
+        "pilot_item_id": "19990304_S002",
+        "sentence_text": "다만 엔화 약세 등으로 인한 수출부진 가능성, 기업 구조조정과정에서의 노사갈등 우려 등 대내외 불안요인이 잠재해 있음"
       },
       {
-        "assignment_id": "USPILOT_R05_05",
+        "assignment_id": "H3_PILOT_R05_05",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 5,
-        "pilot_item_id": "USP_010",
-        "sentence_text": "경기 대응을 위해 금리 인상과 금리 인하를 모두 즉시 시행할 필요가 있다."
+        "pilot_item_id": "20200716_S011",
+        "sentence_text": "앞으로 소비자물가 상승률과 근원인플레이션율은 국제유가 하락의 영향 지속, 수요측면에서의 낮은 물가상승압력 등으로 0%대 초반 수준에 머무를 것으로 보인다."
       },
       {
-        "assignment_id": "USPILOT_R05_06",
+        "assignment_id": "H3_PILOT_R05_06",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 6,
-        "pilot_item_id": "USP_003",
-        "sentence_text": "지속되는 가격 상승압력을 낮추기 위해 이번 회의에서 정책금리를 0.50%포인트 더 높이기로 결정한다."
+        "pilot_item_id": "20010508_S005",
+        "sentence_text": "앞으로도 물가 및 경기, 금융시장 상황, 대외여건 변화 등을 종합적으로 감안하여 경기회복을 뒷받침하면서도 수요면에서 물가압력이 발생하지 않도록 통화정책을 운용할 것이며 특히 최근의 물가상승세가 일반의 인플레기대심리 확산으로 이어지지 않도록 유의할 것임"
       },
       {
-        "assignment_id": "USPILOT_R05_07",
+        "assignment_id": "H3_PILOT_R05_07",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 7,
-        "pilot_item_id": "USP_001",
-        "sentence_text": "그 위험이 커질 경우에는 앞에서 언급한 쪽으로 통화정책을 조정해야 한다."
+        "pilot_item_id": "20090409_S006",
+        "sentence_text": "앞으로 통화정책은 당분간 금융완화기조를 유지하면서 경기의 과도한 위축을 방지하고 금융시장 안정을 도모하는 데 주안점을 두고 운용해 나갈 것임"
       },
       {
-        "assignment_id": "USPILOT_R05_08",
+        "assignment_id": "H3_PILOT_R05_08",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 8,
-        "pilot_item_id": "USP_004",
-        "sentence_text": "생산 위축 우려와 가격 오름세 재확대 우려가 서로 상쇄되어 지금은 금리를 한 방향으로 움직일 근거가 없다."
+        "pilot_item_id": "20111013_S008",
+        "sentence_text": "앞으로 농산물가격 하락 및 전년도로부터의 기저효과 등이 물가상승률을 낮추는 요인으로 작용하겠으나, 계속 높게 유지되고 있는 인플레이션 기대심리 등으로 물가상승률의 하락 속도는 완만할 것으로 예상된다."
       },
       {
-        "assignment_id": "USPILOT_R05_09",
+        "assignment_id": "H3_PILOT_R05_09",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 9,
-        "pilot_item_id": "USP_005",
-        "sentence_text": "단기자금시장의 경색을 풀기 위해 다음 주부터 금융기관에 공급하는 유동성 규모를 즉시 늘린다."
+        "pilot_item_id": "20060309_S001",
+        "sentence_text": "실물경제는 건설투자의 증가가 미약하나 수출이 견실한 증가세를 유지하고 민간소비가 회복세를 지속하는 가운데 설비투자도 증가세를 이어가고 있음"
       },
       {
-        "assignment_id": "USPILOT_R05_10",
+        "assignment_id": "H3_PILOT_R05_10",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 10,
-        "pilot_item_id": "USP_006",
-        "sentence_text": "신용 팽창이 이어지는 만큼 다음 정책 변화의 무게중심은 긴축 쪽에 두어야 한다."
+        "pilot_item_id": "20180524_S007",
+        "sentence_text": "앞으로 국내경제의 성장 흐름은 지난 4월 전망 경로와 대체로 부합할 것으로 예상된다."
       },
       {
-        "assignment_id": "USPILOT_R05_11",
+        "assignment_id": "H3_PILOT_R05_11",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 11,
-        "pilot_item_id": "USP_009",
-        "sentence_text": "수요의 급격한 위축을 막기 위해 이번 회의에서 정책금리를 0.50%포인트 더 낮추기로 결정한다."
+        "pilot_item_id": "20260410_S016",
+        "sentence_text": "향후 물가경로는 국제유가 및 환율 움직임, 정부 물가안정 대책의 효과, 비용상승의 파급 정도 등과 관련한 불확실성이 매우 높은 상황이다."
       },
       {
-        "assignment_id": "USPILOT_R05_12",
+        "assignment_id": "H3_PILOT_R05_12",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 12,
-        "pilot_item_id": "USP_008",
-        "sentence_text": "과도한 시중 유동성을 회수하기 위해 다음 주부터 중앙은행의 정례 자금공급 규모를 즉시 축소한다."
+        "pilot_item_id": "20040812_S002",
+        "sentence_text": "물가면에서는 국제유가 급등 등의 영향으로 상승압력이 높아지고 있으나 내수 저조로 수요압력이 미약하여 근원인플레이션율은 목표범위 내에서 유지되고 있음"
       }
     ]
   },
   "source_hashes": {
-    "response_template": "fe83dcdd15485e67e7b7643b749bdbde37b04f642aa1362ff6f6758202fd76b7",
-    "participant_items": "8966c78661817031f459e348dc870f63660be34429328b65e498556bb024365a",
-    "pilot_fieldwork_config": "326e405b4e88d852b4a4c7e22109b02c6a00932003820161b6961640d414b057",
-    "pilot_protocol": "be576a1aa4ac98dea47b72b70666b35fa968784c058afec41176805eea180f73",
-    "parent_manifest": "64ba49fc40a8c009f630682817ecb7129fc01ec26935ac71f99d60c2eb504c9c"
+    "r3_source": "71ccc026be3612dd1b0e33bb129e0ac1ce30b21d8f94c2cf4e35a86202d99081"
   },
   "release_source_hashes": {
     "database_pi_manual_test": "63debae33ba265408eddd40c10183aa133dc7546fb476bb21caa31ffdf686ba5",
+    "database_r3_access": "4c7f5c97998643e9a3af7da689152babf6434f7bbd6eef42f812fb8630bef608",
     "database_schema": "ac214e9a6d08b02cad8d14d97c6a049374c610b0f7ba54a6d0e1bb09796e895d",
-    "edge_contract": "e66c31e51a6e5c94cf0776043f34b96af3beea72b3d88203b7ef7f3f2474bb46",
-    "edge_function": "4161255b8a45ddc00e3111178b145f0785c3f7d26dc9f93b8eb2bb7c4bdae926",
-    "public_admin": "7e0d2a50f51c2a477173d8ec786d3d2ecb3b2aa92d5a5831717f9e27a6abd02a",
+    "edge_contract": "25bec2118e99af7257397d728e3f2e48aaf562e24f212e12bc50b6d1ab475f67",
+    "edge_function": "716e3c7c7fe48a2643b3b3a6948d2626e87862ecbba522bcc1138d39774d40f8",
+    "public_admin": "8860809d8c955650e66b2250a8a57051c2a008d165cbef1a1fb2a9f41fdb8030",
     "public_admin_bridge": "3ab691295e3f177bffc9a8a1533436693ce1a31e13335adaa06fecd47c1ee7a2",
-    "public_app": "7425da9064d4a3b5d7ebd9086806db28790a4103570b6089534085275a5eb413",
+    "public_app": "698b2dea8e7fc09c1e6d1e5e22b85ba2d3460f7a761ae925a83faa642fc7a789",
     "public_contract": "5359b283c4d90bdbb9dd716c7a2be892e9f362df3949ebc8aa567da3c3043086",
-    "public_index": "250a521cba58b081ef774354ede7274dade952abf9729db8d6f68fc9d0bd329d",
+    "public_index": "346fefee93dab4f062a3bfa99034f4e5ebb629b3eb870cb84b9a36224e4fad14",
+    "public_privacy": "264ac4fc39207ea8eccf94987c8e3acdbfb53fbeb07dd7bf5edc7ac81f4582ed",
     "public_styles": "ea23e22cf0f2adf2e0707fa84e2e2f92efe73d231ea6ebc6d379b37813a80580",
+    "r3_source": "71ccc026be3612dd1b0e33bb129e0ac1ce30b21d8f94c2cf4e35a86202d99081",
     "supabase_config": "62e27b64065d1802c260244e55f068856025ee4dc65a307ca67827ffe8308add"
   }
 }

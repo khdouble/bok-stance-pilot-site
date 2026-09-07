@@ -162,6 +162,19 @@
       <textarea id="reasonNote" rows="3" maxlength="600"
                 placeholder="OTHER를 선택한 경우에만 간단히 적어 주세요. 개인정보는 적지 마세요."></textarea>
 
+      <label for="itemQualityCode">문항 품질 의견 (점수와 별도)</label>
+      <select id="itemQualityCode">
+        <option value="NONE">NONE — 의견 없음</option>
+        <option value="TOO_OBVIOUS">TOO_OBVIOUS — 너무 명시적임</option>
+        <option value="UNNATURAL_OR_IMPOSSIBLE">UNNATURAL_OR_IMPOSSIBLE — 부자연스럽거나 성립하지 않음</option>
+        <option value="POLICY_INSTRUMENT_AMBIGUITY">POLICY_INSTRUMENT_AMBIGUITY — 정책수단과 stance가 혼동됨</option>
+        <option value="CONTEXT_REFERENCE_AMBIGUITY">CONTEXT_REFERENCE_AMBIGUITY — 앞뒤 맥락·지시대상 부족</option>
+        <option value="UI_PROBLEM">UI_PROBLEM — 화면 또는 입력 문제</option>
+        <option value="OTHER">OTHER</option>
+      </select>
+      <label for="itemQualityNote">문항 품질 메모</label>
+      <textarea id="itemQualityNote" rows="2" maxlength="600"
+                placeholder="OTHER일 때만 적어 주세요. 개인정보는 적지 마세요."></textarea>
       <p id="itemError" class="error-text" role="alert"></p>
       <div class="actions">
         <button id="previousItem" type="button" class="secondary">이전</button>

@@ -13,6 +13,7 @@ import {
   sha256Hex,
   SubmitRequest,
   validateLoadRequest,
+  validateDirectLoadRequest,
   validateAdminLoadRequest,
   validateAdminSubmitRequest,
   validateSubmitRequest,
@@ -22,7 +23,8 @@ const MAX_REQUEST_BYTES = 256 * 1024;
 const ADMIN_ID_HMAC_DOMAIN = 'bok-pilot-admin-id-v1';
 const ADMIN_PASSWORD_HMAC_DOMAIN = 'bok-pilot-admin-password-v1';
 const PI_MANUAL_TEST_PURPOSE = 'pi_manual_test';
-const PARTICIPANT_PURPOSES = new Set(['participant', 'disposable_e2e']);
+const PI_PREVIEW_PURPOSE = 'pi_preview';
+const FIELDING_OPEN_TOKEN_PURPOSES = new Set(['participant', 'disposable_e2e', 'participant_direct']);
 const INVITE_HMAC_DOMAIN = "bok-pilot-invite-v1";
 const IDENTITY_HMAC_DOMAIN = "bok-pilot-identity-v1";
 
@@ -152,6 +154,35 @@ async function adminCredentialHmac(
   return { adminIdHmac, passwordHmac };
 }
 
+function tokenPurposeAllowed(
+  purpose: string,
+  fieldingOpen: boolean,
+  authMode: 'invite' | 'admin',
+): boolean {
+  if (authMode === 'admin') return purpose === PI_MANUAL_TEST_PURPOSE && !fieldingOpen;
+  return (fieldingOpen && FIELDING_OPEN_TOKEN_PURPOSES.has(purpose))
+    || (!fieldingOpen && purpose === PI_PREVIEW_PURPOSE);
+}
+
+function submissionMetadata(
+  purpose: string,
+  authMode: 'invite' | 'admin',
+): { datasetRole: string; exclusionReason: string } {
+  if (authMode === 'admin') {
+    return { datasetRole: 'synthetic_pi_manual_test', exclusionReason: 'pi_manual_test_never_analysis' };
+  }
+  if (purpose === PI_PREVIEW_PURPOSE) {
+    return { datasetRole: 'r3_pi_preview', exclusionReason: 'r3_pi_preview_never_analysis' };
+  }
+  return { datasetRole: 'r3_content_response_pilot', exclusionReason: 'r3_repilot_never_analysis' };
+}
+
+function randomToken256(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
 function assertExactAssignment(rows: AssignmentRow[]): void {
   if (rows.length !== RESPONSE_COUNT) {
     throw new Error("Configured assignment does not contain exactly 12 items.");
@@ -215,15 +246,9 @@ async function loadAssignment(
       throw authMode === 'admin' ? adminAuthFailed() : unavailableInvite();
     }
     const invite = invites[0];
-    const purposeOk = authMode === 'admin'
-      ? invite.invite_purpose === PI_MANUAL_TEST_PURPOSE
-      : PARTICIPANT_PURPOSES.has(invite.invite_purpose);
     if (
-      !purposeOk ||
+      !tokenPurposeAllowed(invite.invite_purpose, invite.fielding_open, authMode) ||
       invite.revoked_at !== null || invite.used_at !== null || !invite.is_active ||
-      (authMode === 'admin'
-        ? invite.fielding_open !== false
-        : invite.fielding_open !== true) ||
       new Date(invite.expires_at).getTime() <= Date.now() ||
       invite.instrument_version !== expectedVersion || Number(invite.expected_response_count) !== RESPONSE_COUNT
     ) {
@@ -250,6 +275,63 @@ async function loadAssignment(
   });
 }
 
+async function startDirectEntry(
+  db: ReturnType<typeof postgres>,
+  request: ReturnType<typeof validateDirectLoadRequest>,
+  config: RuntimeConfig,
+): Promise<{ accessToken: string; assignmentCode: string; rows: AssignmentRow[] }> {
+  const identityCanonical = canonicalJson({ name: request.identity.name, phone: request.identity.phone });
+  const identityHmacHex = await hmacSha256Hex(config.identityHmacSecret, IDENTITY_HMAC_DOMAIN, identityCanonical);
+  const accessToken = randomToken256();
+  const accessTokenHmacHex = await tokenHmac(accessToken, config);
+  const assignmentNumber = (parseInt(identityHmacHex.slice(0, 8), 16) % RESPONSE_COUNT) % 5 + 1;
+  const assignmentCode = `PILOT_R${String(assignmentNumber).padStart(2, '0')}`;
+  return await db.begin(async (tx) => {
+    const instruments = await tx<{
+      instrument_version: string;
+      expected_response_count: number;
+      is_active: boolean;
+      fielding_open: boolean;
+    }[]>`
+      select instrument_version, expected_response_count, is_active, fielding_open
+      from research.pilot_instruments
+      where instrument_sha256 = ${request.instrument_sha256}
+      for share
+    `;
+    if (
+      instruments.length !== 1 ||
+      instruments[0].instrument_version !== config.expectedInstrumentVersion ||
+      Number(instruments[0].expected_response_count) !== RESPONSE_COUNT ||
+      instruments[0].is_active !== true ||
+      instruments[0].fielding_open !== true
+    ) throw unavailableInvite();
+    await tx`
+      insert into private.pilot_invites (
+        invite_id, token_hmac, instrument_sha256, assignment_code,
+        expires_at, invite_purpose, registration_identity_hmac
+      ) values (
+        ${crypto.randomUUID()}::uuid,
+        decode(${accessTokenHmacHex}, 'hex'),
+        ${request.instrument_sha256},
+        ${assignmentCode},
+        now() + interval '6 hours',
+        'participant_direct',
+        decode(${identityHmacHex}, 'hex')
+      )
+    `;
+    const rows = await tx<AssignmentRow[]>`
+      select a.assignment_code, a.assignment_id, a.display_position, a.pilot_item_id, p.sentence_text
+      from research.pilot_assignments as a
+      join research.pilot_items as p
+        on p.instrument_sha256 = a.instrument_sha256 and p.pilot_item_id = a.pilot_item_id
+      where a.instrument_sha256 = ${request.instrument_sha256}
+        and a.assignment_code = ${assignmentCode}
+      order by a.display_position
+    `;
+    assertExactAssignment(rows);
+    return { accessToken, assignmentCode, rows };
+  });
+}
 async function submitAtomically(
   db: ReturnType<typeof postgres>,
   tokenHmacHex: string,
@@ -309,6 +391,7 @@ async function submitAtomically(
       is_active: boolean;
       fielding_open: boolean;
       invite_purpose: string;
+      registration_identity_hmac_hex: string | null;
     }[]>`
       select
         v.invite_id,
@@ -321,7 +404,8 @@ async function submitAtomically(
         i.expected_response_count,
         i.is_active,
         i.fielding_open,
-        v.invite_purpose
+        v.invite_purpose,
+        encode(v.registration_identity_hmac, 'hex') as registration_identity_hmac_hex
       from private.pilot_invites as v
       join research.pilot_instruments as i
         on i.instrument_sha256 = v.instrument_sha256
@@ -341,10 +425,10 @@ async function submitAtomically(
     }
     const invite = invites[0];
 
-    const purposeOk = authMode === 'admin'
+    const purposeKnown = authMode === 'admin'
       ? invite.invite_purpose === PI_MANUAL_TEST_PURPOSE
-      : PARTICIPANT_PURPOSES.has(invite.invite_purpose);
-    if (!purposeOk) {
+      : FIELDING_OPEN_TOKEN_PURPOSES.has(invite.invite_purpose) || invite.invite_purpose === PI_PREVIEW_PURPOSE;
+    if (!purposeKnown) {
       throw authMode === 'admin' ? adminAuthFailed() : unavailableInvite();
     }
     if (
@@ -392,13 +476,32 @@ async function submitAtomically(
     }
     if (
       authMode === 'invite' && (
-      invite.revoked_at !== null || !invite.is_active || invite.fielding_open !== true ||
+      invite.revoked_at !== null || !invite.is_active ||
+      !tokenPurposeAllowed(invite.invite_purpose, invite.fielding_open, authMode) ||
       new Date(invite.expires_at).getTime() <= Date.now() ||
       invite.instrument_version !== config.expectedInstrumentVersion ||
       Number(invite.expected_response_count) !== RESPONSE_COUNT
       )
     ) throw unavailableInvite();
 
+    if (
+      invite.invite_purpose === 'participant_direct' &&
+      invite.registration_identity_hmac_hex !== identityHmacHex
+    ) throw unavailableInvite();
+    if (invite.invite_purpose === 'participant_direct') {
+      const prior = await tx<{ submission_id: string }[]>`
+        select s.submission_id
+        from research.pilot_submissions as s
+        join private.participant_identity as p on p.participant_id = s.participant_id
+        where s.instrument_sha256 = ${request.instrument_sha256}
+          and p.identity_hmac = decode(${identityHmacHex}, 'hex')
+        limit 1
+      `;
+      if (prior.length !== 0) {
+        throw new ClientError(409, 'DIRECT_IDENTITY_ALREADY_SUBMITTED', 'This name and phone number have already submitted this pilot.');
+      }
+    }
+    const role = submissionMetadata(invite.invite_purpose, authMode);
     const assignments = await tx<AssignmentRow[]>`
       select
         a.assignment_code,
@@ -486,9 +589,9 @@ async function submitAtomically(
         ${request.feedback.zero_vs_99_explanation},
         ${request.feedback.change_vs_stance_explanation},
         ${request.feedback.ui_error_note},
-        ${authMode === 'admin' ? 'synthetic_pi_manual_test' : 'synthetic_usability_pilot'},
+        ${role.datasetRole},
         true,
-        ${authMode === 'admin' ? 'pi_manual_test_never_analysis' : 'synthetic_usability_only_never_analysis'}
+        ${role.exclusionReason}
       )
     `;
 
@@ -506,6 +609,8 @@ async function submitAtomically(
       started_at: response.started_at,
       finished_at: response.finished_at,
       active_duration_seconds: response.active_duration_seconds,
+      item_quality_code: response.item_quality_code || 'NONE',
+      item_quality_note: response.item_quality_note || '',
     }));
     await tx`
       insert into research.pilot_responses ${tx(responseRows,
@@ -521,7 +626,9 @@ async function submitAtomically(
         "reason_note",
         "started_at",
         "finished_at",
-        "active_duration_seconds"
+        "active_duration_seconds",
+        "item_quality_code",
+        "item_quality_note"
       )}
     `;
 
@@ -645,7 +752,27 @@ Deno.serve(async (request: Request): Promise<Response> => {
         })),
       });
     }
-    if (action === "load") {
+    if (action === "direct_load") {
+      const direct = validateDirectLoadRequest(body, config.consentVersion);
+      assertInstrument(direct.instrument_sha256, config);
+      const started = await startDirectEntry(db, direct, config);
+      return jsonResponse(200, {
+        ok: true,
+        access_token: started.accessToken,
+        instrument: {
+          version: config.expectedInstrumentVersion,
+          sha256: config.expectedInstrumentSha256,
+          response_count: RESPONSE_COUNT,
+        },
+        assignment_code: started.assignmentCode,
+        items: started.rows.map((row) => ({
+          assignment_id: row.assignment_id,
+          display_position: Number(row.display_position),
+          pilot_item_id: row.pilot_item_id,
+          sentence_text: row.sentence_text,
+        })),
+      });
+    }    if (action === "load") {
       const load = validateLoadRequest(body);
       assertInstrument(load.instrument_sha256, config);
       const hmac = await tokenHmac(load.invite_token, config);
@@ -682,7 +809,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
       );
       return jsonResponse(200, { ok: true, receipt });
     }
-    throw new ClientError(400, "INVALID_ACTION", "action must be load or submit.");
+    throw new ClientError(400, "INVALID_ACTION", "action must be direct_load, load, or submit.");
   } catch (error) {
     if (error instanceof ClientError) {
       return jsonResponse(error.status, { ok: false, error: { code: error.code, message: error.message } });

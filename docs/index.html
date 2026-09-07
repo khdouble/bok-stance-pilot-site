@@ -13,9 +13,9 @@
 <body>
   <main class="shell">
     <header class="hero">
-      <p class="eyebrow">Synthetic usability pilot</p>
+      <p class="eyebrow">R3 content-response pilot · preview</p>
       <h1>통화정책 문장 평가</h1>
-      <p>사전에 연락받은 참가자를 위한 12문항 사용성 점검입니다.</p>
+      <p>사전에 연락받은 참가자를 위한 실제 한국은행 문장 12개 re-pilot입니다.</p>
     </header>
 
     <div id="globalStatus" class="status info" role="status" aria-live="polite">
@@ -64,7 +64,7 @@
           확인할 수 있습니다.
         </p>
         <p>
-          이 파일럿은 합성문장 UI 점검이며 연구의 성능분석 자료에는 포함되지
+          이 R3 re-pilot은 연습문항과 실제 BOK 문항의 이해·응답과정 점검용이며, 현재 배포의 응답은 연구의 성능분석 자료에는 포함되지
           않습니다. 이름이나 전화번호를 문항 메모에 다시 적지 마세요.
         </p>
         <p>
@@ -99,6 +99,14 @@
       <button id="beginSurvey" type="button" class="primary">평가 시작</button>
     </section>
 
+    <section id="tutorialPanel" class="card" hidden>
+      <h2 id="tutorialTitle">연습문항 (연구점수 미포함)</h2>
+      <p id="tutorialInstructions"></p>
+      <div id="tutorialItems" class="tutorial-items"></div>
+      <div class="actions">
+        <button id="beginCore" type="button" class="primary">실제 BOK 문항 시작</button>
+      </div>
+    </section>
     <section id="surveyPanel" class="card" hidden>
       <div class="progress-row">
         <strong id="progressText">문항 1 / 12</strong>
@@ -147,6 +155,19 @@
       <textarea id="reasonNote" rows="3" maxlength="600"
                 placeholder="OTHER를 선택한 경우에만 간단히 적어 주세요. 개인정보는 적지 마세요."></textarea>
 
+      <label for="itemQualityCode">문항 품질 의견 (점수와 별도)</label>
+      <select id="itemQualityCode">
+        <option value="NONE">NONE — 의견 없음</option>
+        <option value="TOO_OBVIOUS">TOO_OBVIOUS — 너무 명시적임</option>
+        <option value="UNNATURAL_OR_IMPOSSIBLE">UNNATURAL_OR_IMPOSSIBLE — 부자연스럽거나 성립하지 않음</option>
+        <option value="POLICY_INSTRUMENT_AMBIGUITY">POLICY_INSTRUMENT_AMBIGUITY — 정책수단과 stance가 혼동됨</option>
+        <option value="CONTEXT_REFERENCE_AMBIGUITY">CONTEXT_REFERENCE_AMBIGUITY — 앞뒤 맥락·지시대상 부족</option>
+        <option value="UI_PROBLEM">UI_PROBLEM — 화면 또는 입력 문제</option>
+        <option value="OTHER">OTHER</option>
+      </select>
+      <label for="itemQualityNote">문항 품질 메모</label>
+      <textarea id="itemQualityNote" rows="2" maxlength="600"
+                placeholder="OTHER일 때만 적어 주세요. 개인정보는 적지 마세요."></textarea>
       <p id="itemError" class="error-text" role="alert"></p>
       <div class="actions">
         <button id="previousItem" type="button" class="secondary">이전</button>

@@ -36,6 +36,13 @@ export interface LoadRequest {
   instrument_sha256: string;
 }
 
+export interface DirectLoadRequest {
+  action: "direct_load";
+  instrument_sha256: string;
+  consent: ConsentRecord;
+  identity: IdentityRecord;
+}
+
 export interface AdminLoadRequest {
   action: 'admin_load';
   admin_id: string;
@@ -70,6 +77,8 @@ export interface ResponseRecord {
   started_at: string;
   finished_at: string;
   active_duration_seconds: number;
+  item_quality_code?: "NONE" | "TOO_OBVIOUS" | "UNNATURAL_OR_IMPOSSIBLE" | "POLICY_INSTRUMENT_AMBIGUITY" | "CONTEXT_REFERENCE_AMBIGUITY" | "UI_PROBLEM" | "OTHER";
+  item_quality_note?: string;
 }
 
 export interface FeedbackRecord {
@@ -221,6 +230,44 @@ export function validateLoadRequest(input: unknown): LoadRequest {
   };
 }
 
+export function validateDirectLoadRequest(
+  input: unknown,
+  expectedConsentVersion: string,
+  nowMs = Date.now(),
+): DirectLoadRequest {
+  const body = objectValue(input, "request");
+  exactKeys(body, ["action", "instrument_sha256", "consent", "identity"], [], "request");
+  if (body.action !== "direct_load") {
+    throw new ClientError(400, "INVALID_ACTION", "action must be direct_load.");
+  }
+  const consentInput = objectValue(body.consent, "consent");
+  exactKeys(consentInput, ["accepted", "version", "accepted_at"], [], "consent");
+  if (consentInput.accepted !== true) {
+    throw new ClientError(400, "CONSENT_REQUIRED", "Consent must be accepted before starting.");
+  }
+  const consent: ConsentRecord = {
+    accepted: true,
+    version: textValue(consentInput.version, "consent.version", 1, 80),
+    accepted_at: isoTimestamp(consentInput.accepted_at, "consent.accepted_at"),
+  };
+  if (consent.version !== expectedConsentVersion) {
+    throw new ClientError(409, "CONSENT_VERSION_MISMATCH", "The consent form has changed; reload before starting.");
+  }
+  if (Date.parse(consent.accepted_at) > nowMs + 5 * 60_000) {
+    throw new ClientError(400, "INVALID_TIMING", "Consent timestamp is inconsistent.");
+  }
+  const identityInput = objectValue(body.identity, "identity");
+  exactKeys(identityInput, ["name", "phone"], [], "identity");
+  return {
+    action: "direct_load",
+    instrument_sha256: instrumentHash(body.instrument_sha256),
+    consent,
+    identity: {
+      name: textValue(identityInput.name, "identity.name", 1, 80),
+      phone: normalizePhone(identityInput.phone),
+    },
+  };
+}
 export function validateAdminLoadRequest(input: unknown): AdminLoadRequest {
   const body = objectValue(input, 'request');
   if (!('admin_id' in body) || !('admin_password' in body)) {
@@ -324,7 +371,7 @@ export function validateSubmitRequest(
       "started_at",
       "finished_at",
       "active_duration_seconds",
-    ], ["reason_note"], `responses[${index}]`);
+    ], ["reason_note", "item_quality_code", "item_quality_note"], `responses[${index}]`);
     const displayPosition = integerValue(response.display_position, `responses[${index}].display_position`, 1, RESPONSE_COUNT);
     if (positions.has(displayPosition)) {
       throw new ClientError(400, "INVALID_RESPONSES", "Response positions must be unique.");
@@ -353,6 +400,20 @@ export function validateSubmitRequest(
     if (reasonCode !== "OTHER" && reasonNote.length !== 0) {
       throw new ClientError(400, "INVALID_RESPONSES", "reason_note is only allowed with OTHER.");
     }
+    const itemQualityIncluded = response.item_quality_code !== undefined || response.item_quality_note !== undefined;
+    const itemQualityCode = response.item_quality_code === undefined
+      ? "NONE"
+      : textValue(response.item_quality_code, `responses[${index}].item_quality_code`, 1, 64);
+    const itemQualityNote = response.item_quality_note === undefined
+      ? ""
+      : textValue(response.item_quality_note, `responses[${index}].item_quality_note`, 0, 1000);
+    const itemQualityCodes = new Set(["NONE", "TOO_OBVIOUS", "UNNATURAL_OR_IMPOSSIBLE", "POLICY_INSTRUMENT_AMBIGUITY", "CONTEXT_REFERENCE_AMBIGUITY", "UI_PROBLEM", "OTHER"]);
+    if (!itemQualityCodes.has(itemQualityCode)) {
+      throw new ClientError(400, "INVALID_RESPONSES", "item_quality_code is invalid.");
+    }
+    if ((itemQualityCode === "OTHER") !== (itemQualityNote.length > 0)) {
+      throw new ClientError(400, "INVALID_RESPONSES", "item_quality_note is required only for OTHER.");
+    }
     const startedAt = isoTimestamp(response.started_at, `responses[${index}].started_at`);
     const finishedAt = isoTimestamp(response.finished_at, `responses[${index}].finished_at`);
     const startedMs = Date.parse(startedAt);
@@ -371,6 +432,10 @@ export function validateSubmitRequest(
       reason_code: reasonCode,
       confidence: integerValue(response.confidence, `responses[${index}].confidence`, 1, 5),
       reason_note: reasonNote,
+      ...(itemQualityIncluded ? {
+        item_quality_code: itemQualityCode as ResponseRecord["item_quality_code"],
+        item_quality_note: itemQualityNote,
+      } : {}),
       started_at: startedAt,
       finished_at: finishedAt,
       active_duration_seconds: activeSeconds,
@@ -397,7 +462,7 @@ export function validateSubmitRequest(
   };
 
   const researchFreeText = [
-    ...responses.map((response) => response.reason_note),
+    ...responses.flatMap((response) => [response.reason_note, response.item_quality_note || ""]),
     feedback.zero_vs_99_explanation,
     feedback.change_vs_stance_explanation,
     feedback.ui_error_note,

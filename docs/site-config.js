@@ -2,10 +2,11 @@ window.PILOT_SITE_CONFIG = Object.freeze({
   apiUrl: "https://mebisrsvasrzwkmsodsw.supabase.co/functions/v1/pilot-api",
   githubPagesOrigin: "https://khdouble.github.io",
   basePath: "/bok-stance-pilot-site/",
-  hostedVersion: "v260903-pilot-hosted-2",
+  hostedVersion: "v260908-r3-preview-1",
   sourceOfflineInstrumentSha256:
-    "b594a196eb7be720e57d974f4b5c6e4437b697e6ae20f01013e830af35707a51",
+    "de96c00e9f95a9035cfc54a1bf18cc0d24b3465f7b5edc05cd9669a3fbfa7dee",
   fieldingEnabled: false,
+  directEntryEnabled: false,
   privacyNoticeVersion: "consent-v2026-09-03-r1",
   dataController: "김현학 국민대학교 교수",
   contactEmail: "hyunhak.kim@kookmin.ac.kr",

@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "hosted_version": "v260908-r3-preview-1",
+  "source_offline_instrument_sha256": "de96c00e9f95a9035cfc54a1bf18cc0d24b3465f7b5edc05cd9669a3fbfa7dee",
+  "dataset_role": "r3_content_response_pilot",
+  "excluded_from_analysis": true,
+  "analysis_exclusion_reason": "r3_repilot_never_analysis",
+  "source_provenance": {
+    "canonical_corpus": "Sentiment/latent_stance_pipeline/00_contract/outputs/corpus_sentence_analysis.csv",
+    "canonical_corpus_sha256": "de96c00e9f95a9035cfc54a1bf18cc0d24b3465f7b5edc05cd9669a3fbfa7dee",
+    "selection_memo": "Sentiment/latent_stance_pipeline/02_annotation/pilot/pi_manual_test_item_revision_review_2026-09-07.md",
+    "selection_rule": "R3 approved shortlist; selected_panel_role empty, nonduplicate with main panel, legacy_candidate_692 false, correction_type unchanged; labels and AI outputs not consulted."
+  },
+  "tutorial": {
+    "title": "연습문항 (연구점수 미포함)",
+    "instructions": "아래 여섯 문항은 척도와 99 판단불가의 의미를 익히기 위한 연습입니다. 답변은 서버에 전송하거나 연구자료로 저장하지 않습니다.",
+    "items": [
+      {"tutorial_item_id": "TUT_99_CONTEXT", "sentence_text": "그 위험이 커질 경우에는 앞에서 언급한 쪽으로 통화정책을 조정해야 한다.", "intended_choice": 99, "intended_reason_code": "CONTEXT_NEEDED", "explanation": "‘그 위험’과 ‘앞에서 언급한 쪽’의 지시대상이 문장 안에 없으므로, 99와 CONTEXT_NEEDED를 고르는 연습입니다."},
+      {"tutorial_item_id": "TUT_M1", "sentence_text": "고용 회복이 분명해질 때까지 현재의 완화적 통화 여건을 이어가는 편이 적절하다.", "intended_choice": -1, "intended_reason_code": "NONE", "explanation": "완화 기조를 유지한다는 표현은 -1의 예시입니다."},
+      {"tutorial_item_id": "TUT_P2", "sentence_text": "지속되는 가격 상승압력을 낮추기 위해 이번 회의에서 정책금리를 0.50%포인트 더 높이기로 결정한다.", "intended_choice": 2, "intended_reason_code": "NONE", "explanation": "정책금리를 직접 더 높이는 결정은 +2의 예시입니다."},
+      {"tutorial_item_id": "TUT_0", "sentence_text": "생산 위축 우려와 가격 오름세 재확대 우려가 서로 상쇄되어 지금은 금리를 한 방향으로 움직일 근거가 없다.", "intended_choice": 0, "intended_reason_code": "NONE", "explanation": "상반된 근거가 명시적으로 상쇄되어 중립으로 판단할 수 있으면 0입니다."},
+      {"tutorial_item_id": "TUT_M2", "sentence_text": "수요의 급격한 위축을 막기 위해 이번 회의에서 정책금리를 0.50%포인트 더 낮추기로 결정한다.", "intended_choice": -2, "intended_reason_code": "NONE", "explanation": "정책금리를 직접 더 낮추는 결정은 -2의 예시입니다."},
+      {"tutorial_item_id": "TUT_P1", "sentence_text": "기조적 물가가 충분히 안정되기 전까지 제약적인 금융 여건을 그대로 유지하는 것이 바람직하다.", "intended_choice": 1, "intended_reason_code": "NONE", "explanation": "제약적인 여건을 유지한다는 표현은 +1의 예시입니다."}
+    ]
+  },
+  "core_items": [
+    {"pilot_item_id": "19990304_S002", "statement_date": "1999-03-04", "governor": "전철환", "sentence_text": "다만 엔화 약세 등으로 인한 수출부진 가능성, 기업 구조조정과정에서의 노사갈등 우려 등 대내외 불안요인이 잠재해 있음"},
+    {"pilot_item_id": "20010508_S005", "statement_date": "2001-05-08", "governor": "전철환", "sentence_text": "앞으로도 물가 및 경기, 금융시장 상황, 대외여건 변화 등을 종합적으로 감안하여 경기회복을 뒷받침하면서도 수요면에서 물가압력이 발생하지 않도록 통화정책을 운용할 것이며 특히 최근의 물가상승세가 일반의 인플레기대심리 확산으로 이어지지 않도록 유의할 것임"},
+    {"pilot_item_id": "20040812_S002", "statement_date": "2004-08-12", "governor": "박승", "sentence_text": "물가면에서는 국제유가 급등 등의 영향으로 상승압력이 높아지고 있으나 내수 저조로 수요압력이 미약하여 근원인플레이션율은 목표범위 내에서 유지되고 있음"},
+    {"pilot_item_id": "20060309_S001", "statement_date": "2006-03-09", "governor": "박승", "sentence_text": "실물경제는 건설투자의 증가가 미약하나 수출이 견실한 증가세를 유지하고 민간소비가 회복세를 지속하는 가운데 설비투자도 증가세를 이어가고 있음"},
+    {"pilot_item_id": "20071207_S004", "statement_date": "2007-12-07", "governor": "이성태", "sentence_text": "소비자물가는 고유가의 영향 등으로 상승세가 확대되는 모습을 보이고 있으며 부동산가격은 오름세가 제한되고 있음"},
+    {"pilot_item_id": "20090409_S006", "statement_date": "2009-04-09", "governor": "이성태", "sentence_text": "앞으로 통화정책은 당분간 금융완화기조를 유지하면서 경기의 과도한 위축을 방지하고 금융시장 안정을 도모하는 데 주안점을 두고 운용해 나갈 것임"},
+    {"pilot_item_id": "20111013_S008", "statement_date": "2011-10-13", "governor": "김중수", "sentence_text": "앞으로 농산물가격 하락 및 전년도로부터의 기저효과 등이 물가상승률을 낮추는 요인으로 작용하겠으나, 계속 높게 유지되고 있는 인플레이션 기대심리 등으로 물가상승률의 하락 속도는 완만할 것으로 예상된다."},
+    {"pilot_item_id": "20120608_S005", "statement_date": "2012-06-08", "governor": "김중수", "sentence_text": "국내경제를 보면, 수출이 대체로 전년도 수준을 유지하는 가운데 소비와 설비투자가 소폭 증가로 전환하면서 미약하나마 성장세는 이어지고 있다."},
+    {"pilot_item_id": "20180524_S007", "statement_date": "2018-05-24", "governor": "이주열", "sentence_text": "앞으로 국내경제의 성장 흐름은 지난 4월 전망 경로와 대체로 부합할 것으로 예상된다."},
+    {"pilot_item_id": "20200716_S011", "statement_date": "2020-07-16", "governor": "이주열", "sentence_text": "앞으로 소비자물가 상승률과 근원인플레이션율은 국제유가 하락의 영향 지속, 수요측면에서의 낮은 물가상승압력 등으로 0%대 초반 수준에 머무를 것으로 보인다."},
+    {"pilot_item_id": "20240412_S018", "statement_date": "2024-04-12", "governor": "이창용", "sentence_text": "국내경제는 성장세가 개선 흐름을 지속하는 가운데 근원물가 상승률의 둔화 추세가 이어질 것으로 예상되지만 소비자물가 전망과 관련한 불확실성이 높기 때문에 물가가 목표수준으로 수렴할 것으로 확신하기는 아직 이른 상황이다."},
+    {"pilot_item_id": "20260410_S016", "statement_date": "2026-04-10", "governor": "이창용", "sentence_text": "향후 물가경로는 국제유가 및 환율 움직임, 정부 물가안정 대책의 효과, 비용상승의 파급 정도 등과 관련한 불확실성이 매우 높은 상황이다."}
+  ],
+  "assignment_orders": {
+    "PILOT_R01": ["19990304_S002", "20010508_S005", "20040812_S002", "20060309_S001", "20071207_S004", "20090409_S006", "20111013_S008", "20120608_S005", "20180524_S007", "20200716_S011", "20240412_S018", "20260410_S016"],
+    "PILOT_R02": ["20060309_S001", "20200716_S011", "20010508_S005", "20240412_S018", "20120608_S005", "19990304_S002", "20260410_S016", "20040812_S002", "20180524_S007", "20071207_S004", "20111013_S008", "20090409_S006"],
+    "PILOT_R03": ["20111013_S008", "19990304_S002", "20240412_S018", "20071207_S004", "20120608_S005", "20040812_S002", "20260410_S016", "20010508_S005", "20200716_S011", "20060309_S001", "20090409_S006", "20180524_S007"],
+    "PILOT_R04": ["20180524_S007", "20090409_S006", "20060309_S001", "20260410_S016", "20040812_S002", "20111013_S008", "19990304_S002", "20200716_S011", "20071207_S004", "20240412_S018", "20010508_S005", "20120608_S005"],
+    "PILOT_R05": ["20240412_S018", "20120608_S005", "20071207_S004", "19990304_S002", "20200716_S011", "20010508_S005", "20090409_S006", "20111013_S008", "20060309_S001", "20180524_S007", "20260410_S016", "20040812_S002"]
+  }
+}
