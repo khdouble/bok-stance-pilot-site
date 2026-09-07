@@ -1,5 +1,6 @@
 import postgres from "npm:postgres@3.4.7";
 import {
+  AdminSubmitRequest,
   ALLOWED_ORIGIN,
   canonicalJson,
   ClientError,
@@ -12,10 +13,16 @@ import {
   sha256Hex,
   SubmitRequest,
   validateLoadRequest,
+  validateAdminLoadRequest,
+  validateAdminSubmitRequest,
   validateSubmitRequest,
 } from "./_shared/core.ts";
 
 const MAX_REQUEST_BYTES = 256 * 1024;
+const ADMIN_ID_HMAC_DOMAIN = 'bok-pilot-admin-id-v1';
+const ADMIN_PASSWORD_HMAC_DOMAIN = 'bok-pilot-admin-password-v1';
+const PI_MANUAL_TEST_PURPOSE = 'pi_manual_test';
+const PARTICIPANT_PURPOSES = new Set(['participant', 'disposable_e2e']);
 const INVITE_HMAC_DOMAIN = "bok-pilot-invite-v1";
 const IDENTITY_HMAC_DOMAIN = "bok-pilot-identity-v1";
 
@@ -108,9 +115,41 @@ function assertInstrument(requestHash: string, config: RuntimeConfig): void {
   }
 }
 
+function adminAuthFailed(): ClientError {
+  return new ClientError(
+    403,
+    'ADMIN_AUTH_FAILED',
+    'The PI manual-test credential is unavailable.',
+  );
+}
+
 async function tokenHmac(inviteToken: string, config: RuntimeConfig): Promise<string> {
   const tokenBytes = decodeBase64Url256(inviteToken);
   return await hmacSha256Hex(config.inviteHmacSecret, INVITE_HMAC_DOMAIN, tokenBytes);
+}
+
+async function adminCredentialHmac(
+  adminId: string,
+  adminPassword: string,
+  config: RuntimeConfig,
+): Promise<{ adminIdHmac: string; passwordHmac: string }> {
+  const passwordBytes = decodeBase64Url256(
+    adminPassword,
+    'admin_password',
+  );
+  const [adminIdHmac, passwordHmac] = await Promise.all([
+    hmacSha256Hex(
+      config.inviteHmacSecret,
+      ADMIN_ID_HMAC_DOMAIN,
+      adminId,
+    ),
+    hmacSha256Hex(
+      config.inviteHmacSecret,
+      ADMIN_PASSWORD_HMAC_DOMAIN,
+      passwordBytes,
+    ),
+  ]);
+  return { adminIdHmac, passwordHmac };
 }
 
 function assertExactAssignment(rows: AssignmentRow[]): void {
@@ -132,10 +171,13 @@ async function loadAssignment(
   tokenHmacHex: string,
   instrumentSha256: string,
   expectedVersion: string,
+  authMode: 'invite' | 'admin' = 'invite',
+  adminIdHmacHex = '',
 ): Promise<{ assignmentCode: string; rows: AssignmentRow[] }> {
   return await db.begin(async (tx) => {
     const invites = await tx<{
       assignment_code: string;
+      invite_purpose: string;
       instrument_version: string;
       expected_response_count: number;
       expires_at: Date;
@@ -146,6 +188,7 @@ async function loadAssignment(
     }[]>`
       select
         v.assignment_code,
+        v.invite_purpose,
         i.instrument_version,
         i.expected_response_count,
         v.expires_at,
@@ -156,17 +199,36 @@ async function loadAssignment(
       from private.pilot_invites as v
       join research.pilot_instruments as i
         on i.instrument_sha256 = v.instrument_sha256
-      where v.token_hmac = decode(${tokenHmacHex}, 'hex')
+      where (
+          (${authMode} = 'invite'
+           and v.token_hmac = decode(${tokenHmacHex}, 'hex'))
+          or
+          (${authMode} = 'admin'
+           and v.admin_id_hmac = decode(${adminIdHmacHex}, 'hex')
+           and v.token_hmac = decode(${tokenHmacHex}, 'hex'))
+        )
         and v.instrument_sha256 = ${instrumentSha256}
       limit 1
+      for share of i, v
     `;
-    if (invites.length !== 1) throw unavailableInvite();
+    if (invites.length !== 1) {
+      throw authMode === 'admin' ? adminAuthFailed() : unavailableInvite();
+    }
     const invite = invites[0];
+    const purposeOk = authMode === 'admin'
+      ? invite.invite_purpose === PI_MANUAL_TEST_PURPOSE
+      : PARTICIPANT_PURPOSES.has(invite.invite_purpose);
     if (
-      invite.revoked_at !== null || invite.used_at !== null || !invite.is_active || !invite.fielding_open ||
+      !purposeOk ||
+      invite.revoked_at !== null || invite.used_at !== null || !invite.is_active ||
+      (authMode === 'admin'
+        ? invite.fielding_open !== false
+        : invite.fielding_open !== true) ||
       new Date(invite.expires_at).getTime() <= Date.now() ||
       invite.instrument_version !== expectedVersion || Number(invite.expected_response_count) !== RESPONSE_COUNT
-    ) throw unavailableInvite();
+    ) {
+      throw authMode === 'admin' ? adminAuthFailed() : unavailableInvite();
+    }
 
     const rows = await tx<AssignmentRow[]>`
       select
@@ -191,12 +253,16 @@ async function loadAssignment(
 async function submitAtomically(
   db: ReturnType<typeof postgres>,
   tokenHmacHex: string,
-  request: SubmitRequest,
+  request: SubmitRequest | AdminSubmitRequest,
   config: RuntimeConfig,
+  authMode: 'invite' | 'admin' = 'invite',
+  adminIdHmacHex = '',
 ): Promise<{ submission_id: string; submitted_at: string; idempotent: boolean }> {
   const identityCanonical = canonicalJson({ name: request.identity.name, phone: request.identity.phone });
   const identityHmacHex = await hmacSha256Hex(config.identityHmacSecret, IDENTITY_HMAC_DOMAIN, identityCanonical);
-  const identityAad = `${request.instrument_sha256}:${tokenHmacHex}`;
+  const identityAad = authMode === 'admin'
+    ? `admin:${request.instrument_sha256}:${adminIdHmacHex}:${tokenHmacHex}`
+    : `${request.instrument_sha256}:${tokenHmacHex}`;
   const encrypted = await encryptJson(config.piiEncryptionKey, {
     name: request.identity.name,
     phone: request.identity.phone,
@@ -210,6 +276,27 @@ async function submitAtomically(
   };
 
   return await db.begin(async (tx) => {
+    if (authMode === 'admin') {
+      const instruments = await tx<{
+        instrument_version: string;
+        expected_response_count: number;
+        is_active: boolean;
+        fielding_open: boolean;
+      }[]>`
+        select instrument_version, expected_response_count,
+               is_active, fielding_open
+        from research.pilot_instruments
+        where instrument_sha256 = ${request.instrument_sha256}
+        for share
+      `;
+      if (
+        instruments.length !== 1 ||
+        instruments[0].instrument_version !== config.expectedInstrumentVersion ||
+        Number(instruments[0].expected_response_count) !== RESPONSE_COUNT ||
+        instruments[0].is_active !== true ||
+        instruments[0].fielding_open !== false
+      ) throw adminAuthFailed();
+    }
     const invites = await tx<{
       invite_id: string;
       assignment_code: string;
@@ -221,6 +308,7 @@ async function submitAtomically(
       submission_id: string | null;
       is_active: boolean;
       fielding_open: boolean;
+      invite_purpose: string;
     }[]>`
       select
         v.invite_id,
@@ -232,16 +320,44 @@ async function submitAtomically(
         i.instrument_version,
         i.expected_response_count,
         i.is_active,
-        i.fielding_open
+        i.fielding_open,
+        v.invite_purpose
       from private.pilot_invites as v
       join research.pilot_instruments as i
         on i.instrument_sha256 = v.instrument_sha256
-      where v.token_hmac = decode(${tokenHmacHex}, 'hex')
+      where (
+          (${authMode} = 'invite'
+           and v.token_hmac = decode(${tokenHmacHex}, 'hex'))
+          or
+          (${authMode} = 'admin'
+           and v.admin_id_hmac = decode(${adminIdHmacHex}, 'hex')
+           and v.token_hmac = decode(${tokenHmacHex}, 'hex'))
+        )
         and v.instrument_sha256 = ${request.instrument_sha256}
       for update of v
     `;
-    if (invites.length !== 1) throw unavailableInvite();
+    if (invites.length !== 1) {
+      throw authMode === 'admin' ? adminAuthFailed() : unavailableInvite();
+    }
     const invite = invites[0];
+
+    const purposeOk = authMode === 'admin'
+      ? invite.invite_purpose === PI_MANUAL_TEST_PURPOSE
+      : PARTICIPANT_PURPOSES.has(invite.invite_purpose);
+    if (!purposeOk) {
+      throw authMode === 'admin' ? adminAuthFailed() : unavailableInvite();
+    }
+    if (
+      authMode === 'admin' &&
+      (
+        invite.revoked_at !== null ||
+        !invite.is_active ||
+        invite.fielding_open !== false ||
+        new Date(invite.expires_at).getTime() <= Date.now() ||
+        invite.instrument_version !== config.expectedInstrumentVersion ||
+        Number(invite.expected_response_count) !== RESPONSE_COUNT
+      )
+    ) throw adminAuthFailed();
 
     if (invite.used_at !== null) {
       const existing = await tx<{
@@ -265,13 +381,22 @@ async function submitAtomically(
           idempotent: true,
         };
       }
+      if (authMode === 'admin') {
+        throw new ClientError(
+          409,
+          'ADMIN_CREDENTIAL_ALREADY_USED',
+          'This PI manual-test credential has already submitted a different response.',
+        );
+      }
       throw new ClientError(409, "INVITE_ALREADY_USED", "This invitation has already submitted a response.");
     }
     if (
-      invite.revoked_at !== null || !invite.is_active || !invite.fielding_open ||
+      authMode === 'invite' && (
+      invite.revoked_at !== null || !invite.is_active || invite.fielding_open !== true ||
       new Date(invite.expires_at).getTime() <= Date.now() ||
       invite.instrument_version !== config.expectedInstrumentVersion ||
       Number(invite.expected_response_count) !== RESPONSE_COUNT
+      )
     ) throw unavailableInvite();
 
     const assignments = await tx<AssignmentRow[]>`
@@ -341,7 +466,10 @@ async function submitAtomically(
         fatigue_1to5,
         zero_vs_99_explanation,
         change_vs_stance_explanation,
-        ui_error_note
+        ui_error_note,
+        dataset_role,
+        excluded_from_analysis,
+        analysis_exclusion_reason
       ) values (
         ${submissionId}::uuid,
         ${participantId}::uuid,
@@ -357,7 +485,10 @@ async function submitAtomically(
         ${request.feedback.fatigue_1to5},
         ${request.feedback.zero_vs_99_explanation},
         ${request.feedback.change_vs_stance_explanation},
-        ${request.feedback.ui_error_note}
+        ${request.feedback.ui_error_note},
+        ${authMode === 'admin' ? 'synthetic_pi_manual_test' : 'synthetic_usability_pilot'},
+        true,
+        ${authMode === 'admin' ? 'pi_manual_test_never_analysis' : 'synthetic_usability_only_never_analysis'}
       )
     `;
 
@@ -398,6 +529,7 @@ async function submitAtomically(
       update private.pilot_invites
       set used_at = now(), submission_id = ${submissionId}::uuid
       where invite_id = ${invite.invite_id}::uuid
+        and invite_purpose = ${authMode === 'admin' ? PI_MANUAL_TEST_PURPOSE : invite.invite_purpose}
         and used_at is null
       returning used_at as submitted_at
     `;
@@ -450,6 +582,69 @@ Deno.serve(async (request: Request): Promise<Response> => {
     const config = runtimeConfig();
     const db = database(config.databaseUrl);
     const action = (body as Record<string, unknown>).action;
+    if (action === 'admin_submit') {
+      const submit = validateAdminSubmitRequest(
+        body,
+        config.consentVersion,
+      );
+      assertInstrument(submit.instrument_sha256, config);
+      const calculatedPayloadHash = await sha256Hex(
+        canonicalJson(payloadDigestBasis(submit)),
+      );
+      if (calculatedPayloadHash !== submit.payload_sha256) {
+        throw new ClientError(
+          400,
+          'PAYLOAD_HASH_MISMATCH',
+          'The submission payload hash does not match.',
+        );
+      }
+      const credential = await adminCredentialHmac(
+        submit.admin_id,
+        submit.admin_password,
+        config,
+      );
+      const receipt = await submitAtomically(
+        db,
+        credential.passwordHmac,
+        submit,
+        config,
+        'admin',
+        credential.adminIdHmac,
+      );
+      return jsonResponse(200, { ok: true, receipt });
+    }
+    if (action === 'admin_load') {
+      const load = validateAdminLoadRequest(body);
+      assertInstrument(load.instrument_sha256, config);
+      const credential = await adminCredentialHmac(
+        load.admin_id,
+        load.admin_password,
+        config,
+      );
+      const assignment = await loadAssignment(
+        db,
+        credential.passwordHmac,
+        load.instrument_sha256,
+        config.expectedInstrumentVersion,
+        'admin',
+        credential.adminIdHmac,
+      );
+      return jsonResponse(200, {
+        ok: true,
+        instrument: {
+          version: config.expectedInstrumentVersion,
+          sha256: config.expectedInstrumentSha256,
+          response_count: RESPONSE_COUNT,
+        },
+        assignment_code: assignment.assignmentCode,
+        items: assignment.rows.map((row) => ({
+          assignment_id: row.assignment_id,
+          display_position: Number(row.display_position),
+          pilot_item_id: row.pilot_item_id,
+          sentence_text: row.sentence_text,
+        })),
+      });
+    }
     if (action === "load") {
       const load = validateLoadRequest(body);
       assertInstrument(load.instrument_sha256, config);

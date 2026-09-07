@@ -25,9 +25,10 @@ mebisrsvasrzwkmsodsw.supabase.co 주소는 프로젝트 API 주소이지 관리 
 
 ## 고정된 연구 경계
 
-- Hosted version: v260903-pilot-hosted-1
-- Hosted instrument SHA-256:
+- Applied baseline hosted version: v260903-pilot-hosted-1
+- Applied baseline instrument SHA-256:
   4a07da2785bb2228787f2dd4e57339bd5c132111d693681a12cb62baf64978e7
+- Local staged release candidate: v260903-pilot-hosted-2
 - Parent offline instrument SHA-256:
   b594a196eb7be720e57d974f4b5c6e4437b697e6ae20f01013e830af35707a51
 - Dataset role: synthetic_usability_pilot
@@ -36,6 +37,11 @@ mebisrsvasrzwkmsodsw.supabase.co 주소는 프로젝트 API 주소이지 관리 
 Hosted 파일럿은 기존 offline instrument의 후속 배포형식이지만 해시와
 collector가 다릅니다. Hosted 결과를 기존 b594... collector에 맞추려고
 해시나 버전을 바꾸지 마십시오.
+
+적용된 migration 002와 v1 hash는 불변입니다. v2 전환은 새 migration 005로만
+수행하며, 배포 순서는 004 -> 005 -> Edge Function -> GitHub Pages입니다.
+instrument의 정확한 11개 release-source hash에는 순환 참조를 피하려고 005를
+넣지 않고, deployment manifest가 005 raw-byte hash를 별도로 결합합니다.
 
 ## 폴더
 

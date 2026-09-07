@@ -7,6 +7,8 @@ import {
   hmacSha256Hex,
   payloadDigestBasis,
   sha256Hex,
+  validateAdminLoadRequest,
+  validateAdminSubmitRequest,
   validateSubmitRequest,
 } from "./core.ts";
 
@@ -48,6 +50,15 @@ function validBody(): Record<string, unknown> {
     payload_sha256: "b".repeat(64),
     idempotency_key: "123e4567-e89b-42d3-a456-426614174000",
   };
+}
+
+function validAdminBody(): Record<string, unknown> {
+  const body = validBody();
+  body.action = 'admin_submit';
+  body.admin_id = 'PI-ABCDEFGHIJKL';
+  body.admin_password = 'A'.repeat(43);
+  delete body.invite_token;
+  return body;
 }
 
 Deno.test("production CORS origin is exact", () => {
@@ -125,6 +136,112 @@ Deno.test("HMAC is deterministic and domain separated", async () => {
   const second = await hmacSha256Hex(secret, "domain-a", message);
   const third = await hmacSha256Hex(secret, "domain-b", message);
   assert(first.length === 64 && first === second && first !== third);
+});
+
+Deno.test('admin load requires exact canonical credentials', () => {
+  const valid = validateAdminLoadRequest({
+    action: 'admin_load',
+    admin_id: 'PI-ABCDEFGHIJKL',
+    admin_password: 'A'.repeat(43),
+    instrument_sha256: 'a'.repeat(64),
+  });
+  assert(valid.admin_id === 'PI-ABCDEFGHIJKL');
+  for (const [admin_id, admin_password] of [
+    ['pi-ABCDEFGHIJKL', 'A'.repeat(43)],
+    ['PI-ABCDEFGHIJK', 'A'.repeat(43)],
+    ['PI-ABCDEFGHIJKL', 'A'.repeat(42)],
+    ['PI-ABCDEFGHIJKL', 'A'.repeat(42) + 'B'],
+  ]) {
+    let rejected = false;
+    try {
+      validateAdminLoadRequest({
+        action: 'admin_load',
+        admin_id,
+        admin_password,
+        instrument_sha256: 'a'.repeat(64),
+      });
+    } catch (error) {
+      rejected = error instanceof ClientError &&
+        error.status === 403 &&
+        error.code === 'ADMIN_AUTH_FAILED';
+    }
+    assert(rejected);
+  }
+});
+
+Deno.test('admin submit reuses normal validation without invite token', () => {
+  const result = validateAdminSubmitRequest(
+    validAdminBody(),
+    'consent-v1',
+    Date.parse('2026-09-03T00:11:00.000Z'),
+  );
+  assert(result.action === 'admin_submit');
+  assert(result.admin_id === 'PI-ABCDEFGHIJKL');
+  assert(result.responses.length === 12);
+  assert(!('invite_token' in result));
+});
+
+Deno.test('admin payload digest excludes both credential fields', () => {
+  const first = validateAdminSubmitRequest(
+    validAdminBody(),
+    'consent-v1',
+    Date.parse('2026-09-03T00:11:00.000Z'),
+  );
+  const changedBody = validAdminBody();
+  changedBody.admin_id = 'PI-ZYXWVUTSRQPO';
+  changedBody.admin_password = 'B'.repeat(42) + 'Q';
+  const second = validateAdminSubmitRequest(
+    changedBody,
+    'consent-v1',
+    Date.parse('2026-09-03T00:11:00.000Z'),
+  );
+  assert(
+    canonicalJson(payloadDigestBasis(first)) ===
+      canonicalJson(payloadDigestBasis(second)),
+  );
+});
+
+Deno.test('missing admin credential is generic auth failure', () => {
+  const body = validAdminBody();
+  delete body.admin_password;
+  let rejected = false;
+  try {
+    validateAdminSubmitRequest(
+      body,
+      'consent-v1',
+      Date.parse('2026-09-03T00:11:00.000Z'),
+    );
+  } catch (error) {
+    rejected = error instanceof ClientError &&
+      error.status === 403 &&
+      error.code === 'ADMIN_AUTH_FAILED';
+  }
+  assert(rejected);
+});
+
+Deno.test('malformed admin submit credential is generic auth failure', () => {
+  for (const [admin_id, admin_password] of [
+    ['PI-abcdefgh1234', 'A'.repeat(43)],
+    ['PI-ABCDEFGHIJKL', 'A'.repeat(44)],
+    ['PI-ABCDEFGHIJKL', 'A'.repeat(42) + '='],
+  ]) {
+    const body = validAdminBody();
+    body.admin_id = admin_id;
+    body.admin_password = admin_password;
+    let rejected = false;
+    try {
+      validateAdminSubmitRequest(
+        body,
+        'consent-v1',
+        Date.parse('2026-09-03T00:11:00.000Z'),
+      );
+    } catch (error) {
+      rejected = error instanceof ClientError &&
+        error.status === 403 &&
+        error.code === 'ADMIN_AUTH_FAILED';
+    }
+    assert(rejected);
+  }
 });
 
 Deno.test("direct identity is encrypted with randomized AES-GCM output", async () => {

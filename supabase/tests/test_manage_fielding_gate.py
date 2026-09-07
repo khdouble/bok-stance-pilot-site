@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import copy
 import contextlib
 import importlib.util
 import io
+import json
+import sys
 import tempfile
 import unittest
 import uuid
@@ -10,15 +13,20 @@ from pathlib import Path
 from unittest import mock
 
 
-SCRIPT = (
-    Path(__file__).resolve().parents[1]
-    / "admin"
-    / "manage_fielding_gate.py"
-)
+ADMIN = Path(__file__).resolve().parents[1] / "admin"
+if str(ADMIN) not in sys.path:
+    sys.path.insert(0, str(ADMIN))
+SCRIPT = ADMIN / "manage_fielding_gate.py"
+TOOLS = SCRIPT.resolve().parents[2] / "tools"
+if str(TOOLS) not in sys.path:
+    sys.path.insert(0, str(TOOLS))
+import pi_config
+
 SPEC = importlib.util.spec_from_file_location("manage_fielding_gate", SCRIPT)
 assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+EXPECTED_REF = "mebisrsvasrzwkmsodsw"
 
 
 class FakeCursor:
@@ -88,6 +96,212 @@ class ManageFieldingGateTest(unittest.TestCase):
     digest = "a" * 64
     invite_id = str(uuid.UUID("11111111-1111-4111-8111-111111111111"))
 
+    def _seal_manifest(self, manifest: dict[str, object]) -> None:
+        payload = {
+            key: value
+            for key, value in manifest.items()
+            if key != "deployment_manifest_sha256"
+        }
+        manifest["deployment_manifest_sha256"] = MODULE.hashlib.sha256(
+            MODULE._canonical_json(payload)
+        ).hexdigest()
+
+    def _write_live_release(
+        self, repository: Path
+    ) -> tuple[dict[str, object], Path, Path]:
+        docs = repository / "docs"
+        docs.mkdir(parents=True, exist_ok=True)
+        transition = repository / MODULE.TRANSITION_MIGRATION_RELATIVE
+        transition.parent.mkdir(parents=True, exist_ok=True)
+        config_path = docs / "site-config.js"
+        privacy_path = docs / "privacy.html"
+        manifest_path = docs / "deployment-manifest.json"
+        config_path.write_text(
+            "fieldingEnabled: true,\n", encoding="utf-8", newline="\n"
+        )
+        privacy_path.write_text(
+            "approved privacy notice\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        transition.write_text(
+            "generated transition\n", encoding="utf-8", newline="\n"
+        )
+        (docs / "instrument.json").write_text(
+            json.dumps(
+                {
+                    "instrument_sha256": self.digest,
+                    "hosted_version": MODULE.EXPECTED_HOSTED_VERSION,
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        manifest: dict[str, object] = {
+            "deployment_manifest_sha256": "",
+            "schema_version": "1.0",
+            "deployment_state": "live",
+            "site_url": MODULE.EXPECTED_SITE_URL,
+            "api_url": MODULE.EXPECTED_API_URL,
+            "hosted_version": MODULE.EXPECTED_HOSTED_VERSION,
+            "instrument_sha256": self.digest,
+            "operational_file_hashes": {
+                "privacy_notice": MODULE._sha256_file(privacy_path),
+                "site_config": MODULE._sha256_file(config_path),
+            },
+            "deployment_source_hashes": {
+                "database_instrument_transition": MODULE._sha256_file(
+                    transition
+                )
+            },
+        }
+        self._seal_manifest(manifest)
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2) + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        return manifest, manifest_path, transition
+
+    def _assert_live_release(self, repository: Path) -> None:
+        with mock.patch.object(
+            pi_config, "boolean_value", return_value=True
+        ), mock.patch.object(
+            pi_config, "has_placeholder", return_value=False
+        ), mock.patch.object(
+            pi_config, "validate_live_config", return_value=[]
+        ):
+            MODULE.assert_local_live_release(repository, self.digest)
+
+    def test_parser_defaults_to_direct_backend(self) -> None:
+        args = MODULE.parser().parse_args(
+            [
+                "status",
+                "--instrument-sha256",
+                self.digest,
+            ]
+        )
+        self.assertEqual(args.db_backend, MODULE.DIRECT_BACKEND)
+
+    def test_linked_backend_routes_status_open_and_close_without_db_url(
+        self,
+    ) -> None:
+        class FakeLinkedBackend:
+            def __init__(self) -> None:
+                self.calls: list[tuple[object, ...]] = []
+
+            def read_status(self, digest: str) -> dict[str, object]:
+                self.calls.append(("status", digest))
+                return {
+                    "instrument_sha256": digest,
+                    "instrument_version": "v260903-pilot-hosted-1",
+                    "is_active": True,
+                    "fielding_open": False,
+                    "fielding_opened_at": "",
+                    "fielding_closed_at": "",
+                    "invite_count": 1,
+                    "unrevoked_invite_count": 1,
+                    "eligible_unused_invite_count": 1,
+                    "used_invite_count": 0,
+                    "submission_count": 0,
+                    "identity_count": 0,
+                    "response_count": 0,
+                }
+
+            def open_e2e(
+                self, digest: str, version: str, invite_id: str
+            ) -> None:
+                self.calls.append(
+                    ("open-e2e", digest, version, invite_id)
+                )
+
+            def close_e2e(self, digest: str, invite_id: str) -> None:
+                self.calls.append(("close-e2e", digest, invite_id))
+
+        backend = FakeLinkedBackend()
+        cases = (
+            ("status", None),
+            ("open-e2e", self.invite_id),
+            ("close-e2e", self.invite_id),
+        )
+        for action, invite_id in cases:
+            with self.subTest(action=action):
+                arguments = [
+                    action,
+                    "--db-backend",
+                    MODULE.LINKED_CLI_BACKEND,
+                    "--instrument-sha256",
+                    self.digest,
+                ]
+                if invite_id is not None:
+                    arguments.extend(["--invite-id", invite_id])
+                    arguments.extend(
+                        [
+                            "--confirm",
+                            MODULE.confirmation_phrase(
+                                action, self.digest, invite_id
+                            ),
+                        ]
+                    )
+                with mock.patch.object(
+                    MODULE, "LinkedCliBackend", return_value=backend
+                ), mock.patch.object(
+                    MODULE,
+                    "resolve_project_ref",
+                    return_value=EXPECTED_REF,
+                ), mock.patch.object(
+                    MODULE,
+                    "local_instrument_version",
+                    return_value="v260903-pilot-hosted-1",
+                ), mock.patch.object(
+                    MODULE, "required_database_url"
+                ) as database_url, mock.patch.object(
+                    MODULE, "connect_database"
+                ) as connect:
+                    result = MODULE.main(arguments)
+                self.assertEqual(result, 0)
+                database_url.assert_not_called()
+                connect.assert_not_called()
+        self.assertEqual(
+            backend.calls,
+            [
+                ("status", self.digest),
+                (
+                    "open-e2e",
+                    self.digest,
+                    "v260903-pilot-hosted-1",
+                    self.invite_id,
+                ),
+                ("close-e2e", self.digest, self.invite_id),
+            ],
+        )
+
+    def test_linked_backend_rejects_unsupported_mutations_before_access(
+        self,
+    ) -> None:
+        for action in ("open-production", "close"):
+            with self.subTest(action=action):
+                arguments = [
+                    action,
+                    "--db-backend",
+                    MODULE.LINKED_CLI_BACKEND,
+                    "--instrument-sha256",
+                    self.digest,
+                    "--confirm",
+                    MODULE.confirmation_phrase(action, self.digest),
+                ]
+                with mock.patch.object(
+                    MODULE, "LinkedCliBackend"
+                ) as backend, mock.patch.object(
+                    MODULE, "connect_database"
+                ) as connect:
+                    result = MODULE.main(arguments)
+                self.assertEqual(result, 2)
+                backend.assert_not_called()
+                connect.assert_not_called()
+
     def test_status_is_read_only(self) -> None:
         connection = FakeConnection(
             [
@@ -129,7 +343,13 @@ class ManageFieldingGateTest(unittest.TestCase):
                 {
                     "contains": "from private.pilot_invites",
                     "all": [
-                        (self.invite_id, "PILOT_R01", True, True),
+                        (
+                            self.invite_id,
+                            "PILOT_R01",
+                            True,
+                            True,
+                            "disposable_e2e",
+                        ),
                     ],
                 },
                 {
@@ -169,8 +389,20 @@ class ManageFieldingGateTest(unittest.TestCase):
                 {
                     "contains": "from private.pilot_invites",
                     "all": [
-                        (self.invite_id, "PILOT_R01", True, True),
-                        (extra_id, "PILOT_R02", True, True),
+                        (
+                            self.invite_id,
+                            "PILOT_R01",
+                            True,
+                            True,
+                            "disposable_e2e",
+                        ),
+                        (
+                            extra_id,
+                            "PILOT_R02",
+                            True,
+                            True,
+                            "disposable_e2e",
+                        ),
                     ],
                 },
                 {
@@ -196,6 +428,7 @@ class ManageFieldingGateTest(unittest.TestCase):
                 assignment,
                 True,
                 True,
+                "participant",
             )
             for assignment in MODULE.EXPECTED_ASSIGNMENTS
         ]
@@ -258,6 +491,67 @@ class ManageFieldingGateTest(unittest.TestCase):
             )
         self.assertEqual(with_existing_data.rollbacks, 1)
 
+    def test_direct_open_rejects_credentials_with_wrong_purpose(self) -> None:
+        for action, rows, invite_id in (
+            (
+                "open-e2e",
+                [(
+                    self.invite_id,
+                    "PILOT_R01",
+                    True,
+                    True,
+                    "pi_manual_test",
+                )],
+                self.invite_id,
+            ),
+            (
+                "open-production",
+                [
+                    (
+                        str(uuid.uuid4()),
+                        assignment,
+                        True,
+                        True,
+                        (
+                            "pi_manual_test"
+                            if assignment == "PILOT_R01"
+                            else "participant"
+                        ),
+                    )
+                    for assignment in MODULE.EXPECTED_ASSIGNMENTS
+                ],
+                None,
+            ),
+        ):
+            with self.subTest(action=action):
+                connection = FakeConnection([
+                    {
+                        "contains":
+                            "set transaction isolation level serializable"
+                    },
+                    {
+                        "contains": "from research.pilot_instruments",
+                        "one": (True, False, None, None),
+                    },
+                    {
+                        "contains": "from private.pilot_invites",
+                        "all": rows,
+                    },
+                    {
+                        "contains": "from research.pilot_submissions",
+                        "one": (0,),
+                    },
+                ])
+                with self.assertRaises(MODULE.GateError):
+                    MODULE.mutate_gate(
+                        connection,
+                        action,
+                        self.digest,
+                        invite_id,
+                    )
+                self.assertEqual(connection.commits, 0)
+                self.assertEqual(connection.rollbacks, 1)
+
     def test_close_e2e_closes_gate_and_revokes_invite_atomically(self) -> None:
         connection = FakeConnection(
             [
@@ -312,6 +606,11 @@ class ManageFieldingGateTest(unittest.TestCase):
                 if sql.startswith("update private.pilot_invites")
             ),
         )
+        rendered = " ".join(statements)
+        self.assertGreaterEqual(
+            rendered.count("invite_purpose = 'disposable_e2e'"),
+            2,
+        )
 
     def test_confirmation_is_checked_before_database_access(self) -> None:
         stderr = io.StringIO()
@@ -351,6 +650,146 @@ class ManageFieldingGateTest(unittest.TestCase):
         )["instrument_sha256"]
         with self.assertRaisesRegex(MODULE.GateError, "not a validated live"):
             MODULE.assert_local_live_release(repository, current_hash)
+
+    def test_exact_live_release_manifest_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            self._write_live_release(repository)
+            self._assert_live_release(repository)
+
+    def test_live_release_manifest_contract_is_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            original, manifest_path, _ = self._write_live_release(repository)
+            cases: list[tuple[str, dict[str, object], str | None]] = [
+                ("schema version", {"schema_version": "2.0"}, None),
+                ("deployment state", {"deployment_state": "staging"}, None),
+                (
+                    "site URL",
+                    {"site_url": "https://attacker.invalid/"},
+                    None,
+                ),
+                (
+                    "API URL",
+                    {"api_url": "https://attacker.invalid/pilot-api"},
+                    None,
+                ),
+                (
+                    "hosted version",
+                    {"hosted_version": "v260903-pilot-hosted-3"},
+                    None,
+                ),
+                ("instrument hash", {"instrument_sha256": "b" * 64}, None),
+                (
+                    "operational hashes",
+                    {"operational_file_hashes": {"privacy_notice": "c" * 64}},
+                    None,
+                ),
+                (
+                    "transition hash",
+                    {
+                        "deployment_source_hashes": {
+                            "database_instrument_transition": "d" * 64
+                        }
+                    },
+                    None,
+                ),
+                (
+                    "extra transition source",
+                    {
+                        "deployment_source_hashes": {
+                            "database_instrument_transition": (
+                                original["deployment_source_hashes"][
+                                    "database_instrument_transition"
+                                ]
+                            ),
+                            "unexpected": "e" * 64,
+                        }
+                    },
+                    None,
+                ),
+                ("missing top-level key", {}, "api_url"),
+                ("extra top-level key", {"unexpected": True}, None),
+            ]
+            for name, changes, removed_key in cases:
+                with self.subTest(name=name):
+                    candidate = copy.deepcopy(original)
+                    if removed_key is not None:
+                        candidate.pop(removed_key)
+                    candidate.update(changes)
+                    self._seal_manifest(candidate)
+                    manifest_path.write_text(
+                        json.dumps(candidate, indent=2) + "\n",
+                        encoding="utf-8",
+                        newline="\n",
+                    )
+                    with self.assertRaises(MODULE.GateError):
+                        self._assert_live_release(repository)
+
+    def test_live_release_rejects_stale_transition_and_self_digest(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            manifest, manifest_path, transition = self._write_live_release(
+                repository
+            )
+            transition.write_text(
+                "shape-preserving but unbound transition\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            with self.assertRaises(MODULE.GateError):
+                self._assert_live_release(repository)
+
+            manifest, manifest_path, _ = self._write_live_release(repository)
+            manifest["deployment_manifest_sha256"] = "f" * 64
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2) + "\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            with self.assertRaises(MODULE.GateError):
+                self._assert_live_release(repository)
+
+    def test_live_release_rejects_duplicate_manifest_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            manifest, manifest_path, _ = self._write_live_release(repository)
+            encoded = json.dumps(manifest, indent=2)
+            encoded = encoded.replace(
+                '  "schema_version": "1.0",',
+                (
+                    '  "schema_version": "1.0",\n'
+                    '  "schema_version": "1.0",'
+                ),
+                1,
+            )
+            manifest_path.write_text(
+                encoded + "\n", encoding="utf-8", newline="\n"
+            )
+            with self.assertRaises(MODULE.GateError) as raised:
+                self._assert_live_release(repository)
+            self.assertIn(
+                "duplicate JSON key", str(raised.exception.__cause__)
+            )
+
+    def test_live_release_rejects_non_v2_local_instrument(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            self._write_live_release(repository)
+            (repository / "docs" / "instrument.json").write_text(
+                json.dumps(
+                    {
+                        "instrument_sha256": self.digest,
+                        "hosted_version": "v260903-pilot-hosted-3",
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            with self.assertRaises(MODULE.GateError):
+                self._assert_live_release(repository)
 
     def test_database_driver_is_loaded_only_inside_connector(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")

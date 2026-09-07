@@ -21,6 +21,13 @@ class RemoteE2ETests(unittest.TestCase):
     def setUp(self) -> None:
         self.now = datetime.now(timezone.utc) - timedelta(seconds=2)
         self.token = base64.urlsafe_b64encode(bytes(range(32))).decode().rstrip("=")
+        self.transition_bytes = b"-- test-only transition fixture\n"
+        self.transition_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.transition_directory.cleanup)
+        self.transition_path = (
+            Path(self.transition_directory.name) / "005-test-transition.sql"
+        )
+        self.transition_path.write_bytes(self.transition_bytes)
         self.digest = json.loads(
             (REPOSITORY_ROOT / "docs" / "instrument.json").read_text(
                 encoding="utf-8"
@@ -168,12 +175,40 @@ class RemoteE2ETests(unittest.TestCase):
         self.assertEqual(restored.encode("utf-8"), original)
 
     def staged_assets(self) -> dict[str, bytes]:
+        from tools.build_public_instrument import RELEASE_SOURCE_PATHS
+
         assets = module.local_assets(REPOSITORY_ROOT)
+        instrument = json.loads(assets["instrument.json"].decode("utf-8"))
+        instrument["release_source_hashes"] = {
+            name: module._sha256((REPOSITORY_ROOT / relative).read_bytes())
+            for name, relative in RELEASE_SOURCE_PATHS.items()
+        }
+        instrument_basis = {
+            key: value
+            for key, value in instrument.items()
+            if key != "instrument_sha256"
+        }
+        instrument["instrument_sha256"] = module._sha256(
+            module._canonical_json(instrument_basis)
+        )
+        assets["instrument.json"] = (
+            json.dumps(instrument, ensure_ascii=False, indent=2) + "\n"
+        ).encode("utf-8")
+        assets["instrument-hash.js"] = (
+            "window.PILOT_INSTRUMENT_SHA256 = "
+            f'"{instrument["instrument_sha256"]}";\n'
+        ).encode("utf-8")
         manifest = json.loads(assets["deployment-manifest.json"].decode("utf-8"))
         manifest["deployment_state"] = "staging"
+        manifest["instrument_sha256"] = instrument["instrument_sha256"]
         manifest["operational_file_hashes"] = {
             "privacy_notice": module._sha256(assets["privacy.html"]),
             "site_config": module._sha256(assets["site-config.js"]),
+        }
+        manifest["deployment_source_hashes"] = {
+            "database_instrument_transition": module._sha256(
+                self.transition_bytes
+            ),
         }
         basis = {
             key: value
@@ -190,14 +225,64 @@ class RemoteE2ETests(unittest.TestCase):
 
     def test_remote_release_attestation_and_byte_mismatch(self) -> None:
         assets = self.staged_assets()
-        result = module.validate_remote_release(assets, dict(assets), self.now)
+        result = module.validate_remote_release(
+            assets,
+            dict(assets),
+            self.now,
+            transition_migration_path=self.transition_path,
+        )
         self.assertEqual(
-            result["instrument"]["instrument_sha256"], self.digest
+            result["instrument"]["instrument_sha256"],
+            json.loads(assets["instrument.json"])["instrument_sha256"],
+        )
+        self.assertTrue({"admin.html", "admin.js"} <= set(module.REMOTE_FILES))
+        self.assertNotIn(module.urljoin(module.SITE_URL, "admin.html"), module.BROWSER_ASSETS)
+        self.assertNotIn(module.urljoin(module.SITE_URL, "admin.js"), module.BROWSER_ASSETS)
+        self.assertEqual(
+            result["instrument"]["release_source_hashes"]["public_admin"],
+            module._sha256(assets["admin.html"]),
+        )
+        self.assertEqual(
+            result["instrument"]["release_source_hashes"]["public_admin_bridge"],
+            module._sha256(assets["admin.js"]),
+        )
+        self.assertIn(
+            "database_pi_manual_test",
+            result["instrument"]["release_source_hashes"],
         )
         changed = dict(assets)
         changed["app.js"] += b"\n"
         with self.assertRaisesRegex(module.E2EError, "does not match"):
-            module.validate_remote_release(changed, assets, self.now)
+            module.validate_remote_release(
+                changed,
+                assets,
+                self.now,
+                transition_migration_path=self.transition_path,
+            )
+
+        stale_manifest = json.loads(assets["deployment-manifest.json"])
+        stale_manifest["deployment_source_hashes"] = {
+            "database_instrument_transition": "0" * 64,
+        }
+        stale_basis = {
+            key: value
+            for key, value in stale_manifest.items()
+            if key != "deployment_manifest_sha256"
+        }
+        stale_manifest["deployment_manifest_sha256"] = module._sha256(
+            module._canonical_json(stale_basis)
+        )
+        changed = dict(assets)
+        changed["deployment-manifest.json"] = (
+            json.dumps(stale_manifest, ensure_ascii=False, indent=2) + "\n"
+        ).encode("utf-8")
+        with self.assertRaisesRegex(module.E2EError, "transition migration hash"):
+            module.validate_remote_release(
+                changed,
+                changed,
+                self.now,
+                transition_migration_path=self.transition_path,
+            )
 
     def test_gate_invariants_are_fail_closed(self) -> None:
         before = {
@@ -368,6 +453,54 @@ class RemoteE2ETests(unittest.TestCase):
             "Fetch.continueRequest",
         )
 
+    def test_cdp_command_tolerates_idle_poll_before_response(self) -> None:
+        class Socket:
+            def __init__(self) -> None:
+                self.receive_count = 0
+                self.message_id = 0
+
+            def send(self, value: str) -> None:
+                self.message_id = int(json.loads(value)["id"])
+
+            def recv(self, *, timeout: float) -> str:
+                self.receive_count += 1
+                if self.receive_count == 1:
+                    raise TimeoutError
+                return json.dumps(
+                    {
+                        "id": self.message_id,
+                        "result": {"quietPollRecovered": True},
+                    }
+                )
+
+        socket = Socket()
+        client = module.CdpClient(socket, b"override")
+        result = client.command("Runtime.evaluate", timeout=5)
+        self.assertEqual(result, {"quietPollRecovered": True})
+        self.assertEqual(socket.receive_count, 2)
+
+    def test_cdp_command_timeout_uses_overall_deadline(self) -> None:
+        class Socket:
+            def send(self, _value: str) -> None:
+                pass
+
+            def recv(self, *, timeout: float) -> str:
+                raise TimeoutError
+
+        client = module.CdpClient(Socket(), b"override")
+        with (
+            mock.patch.object(
+                module.time,
+                "monotonic",
+                side_effect=(0.0, 0.0, 1.1),
+            ),
+            self.assertRaisesRegex(
+                module.E2EError,
+                "browser command timed out: Runtime.evaluate",
+            ),
+        ):
+            client.command("Runtime.evaluate", timeout=1)
+
     def test_failure_after_invite_load_still_closes_gate(self) -> None:
         invite = {
             "invite_id": str(uuid.uuid4()),
@@ -523,6 +656,313 @@ class RemoteE2ETests(unittest.TestCase):
                 len(pending["asset_attestations"]),
                 len(module.REMOTE_FILES),
             )
+
+    def test_linked_backend_validates_then_opens_statuses_and_closes(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            receipt_path = Path(directory) / "linked-pending.json"
+            invite = {
+                "invite_id": str(uuid.uuid4()),
+                "assignment_code": "PILOT_R01",
+                "invite_token": self.token,
+                "instrument_sha256": self.digest,
+                "provision_file_sha256": "f" * 64,
+            }
+            identity = {"name": "TEST PERSON", "phone": "01012345678"}
+            release = {
+                "instrument": {
+                    "instrument_sha256": self.digest,
+                    "hosted_version": "v260903-pilot-hosted-1",
+                },
+                "manifest": {"deployment_manifest_sha256": "e" * 64},
+                "config_override": b"override",
+                "override_timestamp": module._utc_seconds(self.now),
+                "asset_hashes": {
+                    name: "a" * 64 for name in module.REMOTE_FILES
+                },
+            }
+            before = {
+                "is_active": True,
+                "fielding_open": True,
+                "unrevoked_invite_count": 1,
+                "eligible_unused_invite_count": 1,
+                "used_invite_count": 0,
+                "submission_count": 0,
+            }
+            after = dict(
+                before,
+                eligible_unused_invite_count=0,
+                used_invite_count=1,
+                submission_count=1,
+            )
+            browser_result = {
+                "browser_family": "chrome",
+                "browser_version": "Chrome test",
+                "asset_count": len(module.BROWSER_ASSETS),
+                "config_intercept_count": 1,
+                "assignment_count": 12,
+                "initial_status": 200,
+                "same_retry_status": 200,
+                "changed_retry_status": 409,
+                "fragment_removed": True,
+                "private_inputs_cleared": True,
+                "draft_cleared": True,
+                "javascript_exceptions": 0,
+            }
+            events: list[str] = []
+            statuses = iter((before, after))
+            backend = mock.Mock()
+            backend.open_e2e.side_effect = lambda *args: events.append("open")
+            backend.read_status.side_effect = (
+                lambda *_args: (events.append(
+                    "status_before" if "status_before" not in events
+                    else "status_after"
+                ) or next(statuses))
+            )
+            backend.close_e2e.side_effect = lambda *args: events.append("close")
+
+            def marked(name: str, value: object):
+                def effect(*_args: object, **_kwargs: object) -> object:
+                    events.append(name)
+                    return value
+                return effect
+
+            phrase = (
+                f"OPEN E2E FIELDING {self.digest} {invite['invite_id']}"
+            )
+            with (
+                mock.patch.object(
+                    module,
+                    "load_private_invite",
+                    side_effect=marked(
+                        "invite",
+                        (invite, Path("private"), Path(directory)),
+                    ),
+                ),
+                mock.patch.object(
+                    module,
+                    "load_private_identity_and_receipt",
+                    side_effect=marked(
+                        "identity", (identity, receipt_path)
+                    ),
+                ),
+                mock.patch.object(
+                    module,
+                    "fetch_remote_assets",
+                    side_effect=marked("remote", {}),
+                ),
+                mock.patch.object(
+                    module,
+                    "local_assets",
+                    side_effect=marked("local", {}),
+                ),
+                mock.patch.object(
+                    module,
+                    "validate_remote_release",
+                    side_effect=marked("release", release),
+                ),
+                mock.patch.object(
+                    module,
+                    "find_browser",
+                    side_effect=marked(
+                        "browser_input", (Path("browser"), "chrome")
+                    ),
+                ),
+                mock.patch.object(
+                    module,
+                    "_new_linked_backend",
+                    side_effect=marked("construct", backend),
+                ),
+                mock.patch.object(
+                    module,
+                    "run_browser_flow",
+                    side_effect=marked("browser_flow", browser_result),
+                ),
+                mock.patch.dict(module.os.environ, {}, clear=True),
+            ):
+                result = module.main(
+                    [
+                        "--db-backend",
+                        "linked-cli",
+                        "--confirm-open-e2e",
+                        phrase,
+                    ]
+                )
+            self.assertEqual(result, module.PENDING_EXIT_CODE)
+            self.assertEqual(
+                events,
+                [
+                    "invite",
+                    "identity",
+                    "remote",
+                    "local",
+                    "release",
+                    "browser_input",
+                    "construct",
+                    "open",
+                    "status_before",
+                    "browser_flow",
+                    "status_after",
+                    "close",
+                ],
+            )
+            backend.open_e2e.assert_called_once_with(
+                self.digest,
+                "v260903-pilot-hosted-1",
+                invite["invite_id"],
+            )
+            backend.close_e2e.assert_called_once_with(
+                self.digest, invite["invite_id"]
+            )
+            self.assertEqual(backend.read_status.call_count, 2)
+
+    def test_linked_failure_after_open_always_uses_same_backend_to_close(
+        self,
+    ) -> None:
+        invite = {
+            "invite_id": str(uuid.uuid4()),
+            "assignment_code": "PILOT_R01",
+            "invite_token": self.token,
+            "instrument_sha256": self.digest,
+            "provision_file_sha256": "f" * 64,
+        }
+        identity = {"name": "TEST PERSON", "phone": "01012345678"}
+        receipt_path = Path("new-receipt")
+        release = {
+            "instrument": {
+                "instrument_sha256": self.digest,
+                "hosted_version": "v260903-pilot-hosted-1",
+            },
+            "manifest": {"deployment_manifest_sha256": "e" * 64},
+            "config_override": b"override",
+            "override_timestamp": module._utc_seconds(self.now),
+            "asset_hashes": {
+                name: "a" * 64 for name in module.REMOTE_FILES
+            },
+        }
+        before = {
+            "is_active": True,
+            "fielding_open": True,
+            "unrevoked_invite_count": 1,
+            "eligible_unused_invite_count": 1,
+            "used_invite_count": 0,
+            "submission_count": 0,
+        }
+        backend = mock.Mock()
+        backend.read_status.return_value = before
+        phrase = f"OPEN E2E FIELDING {self.digest} {invite['invite_id']}"
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(
+                module,
+                "load_private_invite",
+                return_value=(invite, Path("private"), Path("root")),
+            ),
+            mock.patch.object(
+                module,
+                "load_private_identity_and_receipt",
+                return_value=(identity, receipt_path),
+            ),
+            mock.patch.object(module, "fetch_remote_assets", return_value={}),
+            mock.patch.object(module, "local_assets", return_value={}),
+            mock.patch.object(
+                module, "validate_remote_release", return_value=release
+            ),
+            mock.patch.object(
+                module,
+                "find_browser",
+                return_value=(Path("browser"), "chrome"),
+            ),
+            mock.patch.object(
+                module, "_new_linked_backend", return_value=backend
+            ),
+            mock.patch.object(
+                module,
+                "run_browser_flow",
+                side_effect=module.E2EError("browser failed"),
+            ),
+            contextlib.redirect_stderr(stderr),
+        ):
+            result = module.main(
+                [
+                    "--db-backend",
+                    "linked-cli",
+                    "--confirm-open-e2e",
+                    phrase,
+                ]
+            )
+        self.assertEqual(result, 1)
+        backend.open_e2e.assert_called_once()
+        backend.close_e2e.assert_called_once_with(
+            self.digest, invite["invite_id"]
+        )
+        self.assertEqual(backend.read_status.call_count, 1)
+        self.assertIn("FAILURE_STAGE: browser-flow", stderr.getvalue())
+
+    def test_linked_invalid_confirmation_never_constructs_or_opens(
+        self,
+    ) -> None:
+        invite = {
+            "invite_id": str(uuid.uuid4()),
+            "assignment_code": "PILOT_R01",
+            "invite_token": self.token,
+            "instrument_sha256": self.digest,
+            "provision_file_sha256": "f" * 64,
+        }
+        identity = {"name": "TEST PERSON", "phone": "01012345678"}
+        release = {
+            "instrument": {
+                "instrument_sha256": self.digest,
+                "hosted_version": "v260903-pilot-hosted-1",
+            },
+            "manifest": {"deployment_manifest_sha256": "e" * 64},
+            "config_override": b"override",
+            "override_timestamp": module._utc_seconds(self.now),
+            "asset_hashes": {
+                name: "a" * 64 for name in module.REMOTE_FILES
+            },
+        }
+        with (
+            mock.patch.object(
+                module,
+                "load_private_invite",
+                return_value=(invite, Path("private"), Path("root")),
+            ),
+            mock.patch.object(
+                module,
+                "load_private_identity_and_receipt",
+                return_value=(identity, Path("receipt")),
+            ),
+            mock.patch.object(module, "fetch_remote_assets", return_value={}),
+            mock.patch.object(module, "local_assets", return_value={}),
+            mock.patch.object(
+                module, "validate_remote_release", return_value=release
+            ),
+            mock.patch.object(
+                module,
+                "find_browser",
+                return_value=(Path("browser"), "chrome"),
+            ) as browser_check,
+            mock.patch.object(module, "_new_linked_backend") as factory,
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            result = module.main(
+                [
+                    "--db-backend",
+                    "linked-cli",
+                    "--confirm-open-e2e",
+                    "WRONG",
+                ]
+            )
+        self.assertEqual(result, 1)
+        browser_check.assert_called_once()
+        factory.assert_not_called()
+
+    def test_db_backend_defaults_to_direct(self) -> None:
+        args = module.parser().parse_args([])
+        self.assertEqual(args.db_backend, "direct")
+        self.assertIsNone(args.confirm_open_e2e)
 
 
 if __name__ == "__main__":

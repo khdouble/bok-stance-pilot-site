@@ -72,6 +72,11 @@ class SafeArgumentParser(argparse.ArgumentParser):
 
 def parser() -> argparse.ArgumentParser:
     result = SafeArgumentParser(description=__doc__)
+    result.add_argument(
+        "--db-backend",
+        choices=("direct", "linked-cli"),
+        default="direct",
+    )
     result.add_argument("--private-root", type=Path)
     result.add_argument("--pending-receipt", type=Path)
     result.add_argument("--invite-file", type=Path)
@@ -203,7 +208,25 @@ def read_cleanup_state(
     repository_root: Path,
     instrument_sha256: str,
     invite_id: str,
+    linked_backend: Any | None = None,
 ) -> dict[str, object]:
+    if linked_backend is not None:
+        try:
+            status = linked_backend.read_status(instrument_sha256)
+            return {
+                "fielding_open": status["fielding_open"],
+                "invite_count": status["invite_count"],
+                "unrevoked_invite_count": status[
+                    "unrevoked_invite_count"
+                ],
+                "identity_count": status["identity_count"],
+                "submission_count": status["submission_count"],
+                "response_count": status["response_count"],
+            }
+        except Exception as exc:
+            raise FinalizeError(
+                "read-only cleanup verification failed"
+            ) from exc
     from supabase.admin import manage_fielding_gate
 
     connection = None
@@ -302,6 +325,11 @@ def validate_cleanup_state(state: Mapping[str, object]) -> None:
         )
 
 
+def _new_linked_backend() -> Any:
+    from supabase.admin.linked_cli_backend import LinkedCliBackend
+    return LinkedCliBackend()
+
+
 def _load_inputs(
     repository_root: Path,
     private_root_arg: Path | None,
@@ -370,10 +398,24 @@ def main(argv: list[str] | None = None) -> int:
         release = attest_current_release(
             REPOSITORY_ROOT, receipt, tested_at
         )
-        cleanup = read_cleanup_state(
-            REPOSITORY_ROOT,
-            invite["instrument_sha256"],
-            invite["invite_id"],
+        linked_backend = (
+            _new_linked_backend()
+            if args.db_backend == "linked-cli"
+            else None
+        )
+        cleanup = (
+            read_cleanup_state(
+                REPOSITORY_ROOT,
+                invite["instrument_sha256"],
+                invite["invite_id"],
+                linked_backend,
+            )
+            if linked_backend is not None
+            else read_cleanup_state(
+                REPOSITORY_ROOT,
+                invite["instrument_sha256"],
+                invite["invite_id"],
+            )
         )
         validate_cleanup_state(cleanup)
         final_receipt = {

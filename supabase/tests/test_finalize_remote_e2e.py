@@ -235,6 +235,114 @@ class FinalizeRemoteE2ETests(unittest.TestCase):
             self.assertNotIn(invite_id, rendered)
             self.assertNotIn("invite_id", rendered)
 
+    def test_linked_cleanup_read_uses_backend_without_direct_database(
+        self,
+    ) -> None:
+        backend = mock.Mock()
+        backend.read_status.return_value = {
+            "instrument_sha256": "a" * 64,
+            "instrument_version": "v260903-pilot-hosted-1",
+            "is_active": True,
+            "fielding_open": False,
+            "fielding_opened_at": "",
+            "fielding_closed_at": "2026-09-03 00:00:00+00",
+            "invite_count": 0,
+            "unrevoked_invite_count": 0,
+            "eligible_unused_invite_count": 0,
+            "used_invite_count": 0,
+            "submission_count": 0,
+            "identity_count": 0,
+            "response_count": 0,
+        }
+        with mock.patch.dict(module.os.environ, {}, clear=True):
+            state = module.read_cleanup_state(
+                module.REPOSITORY_ROOT,
+                "a" * 64,
+                str(uuid.uuid4()),
+                backend,
+            )
+        backend.read_status.assert_called_once_with("a" * 64)
+        self.assertEqual(
+            state,
+            {
+                "fielding_open": False,
+                "invite_count": 0,
+                "unrevoked_invite_count": 0,
+                "identity_count": 0,
+                "submission_count": 0,
+                "response_count": 0,
+            },
+        )
+        module.validate_cleanup_state(state)
+
+    def test_linked_finalizer_constructs_backend_after_input_attestation(
+        self,
+    ) -> None:
+        tested_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+        pending = self.pending(tested_at)
+        invite = {
+            "invite_id": str(uuid.uuid4()),
+            "instrument_sha256": "a" * 64,
+        }
+        clean_state = {
+            "fielding_open": False,
+            "invite_count": 0,
+            "unrevoked_invite_count": 0,
+            "identity_count": 0,
+            "submission_count": 0,
+            "response_count": 0,
+        }
+        events: list[str] = []
+        backend = mock.Mock()
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "linked-clean.json"
+
+            def load(*_args: object, **_kwargs: object):
+                events.append("inputs")
+                return pending, invite, output, tested_at
+
+            def attest(*_args: object, **_kwargs: object):
+                events.append("attest")
+                return {
+                    "asset_hashes": {
+                        name: "d" * 64 for name in e2e.REMOTE_FILES
+                    }
+                }
+
+            def construct() -> object:
+                events.append("construct")
+                return backend
+
+            def cleanup(*args: object):
+                events.append("cleanup")
+                self.assertIs(args[3], backend)
+                return clean_state
+
+            with (
+                mock.patch.object(module, "_load_inputs", side_effect=load),
+                mock.patch.object(
+                    module, "attest_current_release", side_effect=attest
+                ),
+                mock.patch.object(
+                    module, "_new_linked_backend", side_effect=construct
+                ),
+                mock.patch.object(
+                    module, "read_cleanup_state", side_effect=cleanup
+                ),
+                mock.patch.dict(module.os.environ, {}, clear=True),
+            ):
+                result = module.main(
+                    ["--db-backend", "linked-cli"]
+                )
+            self.assertEqual(result, 0)
+            self.assertEqual(
+                events, ["inputs", "attest", "construct", "cleanup"]
+            )
+            self.assertTrue(output.exists())
+
+    def test_db_backend_defaults_to_direct(self) -> None:
+        self.assertEqual(module.parser().parse_args([]).db_backend, "direct")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -13,6 +13,7 @@ import unittest
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest import mock
 
 
 ADMIN = Path(__file__).resolve().parents[1] / "admin"
@@ -503,6 +504,238 @@ class DeleteWithdrawnParticipantTest(unittest.TestCase):
         )
         self.assertNotIn("--name", source)
         self.assertNotIn("--phone", source)
+
+    def linked_preview(self, *, submitted: bool = True) -> dict[str, object]:
+        counts = (
+            {"submissions": 1, "responses": 12, "identities": 1, "invites": 1}
+            if submitted
+            else {"submissions": 0, "responses": 0, "identities": 0, "invites": 1}
+        )
+        return {
+            "outcome": (
+                "deleted_submission"
+                if submitted
+                else "deleted_unused_invite"
+            ),
+            **counts,
+            "confirmation_tag": MODULE.invite_confirmation_tag(
+                self.invite_id
+            ),
+        }
+
+    def test_linked_backend_preview_preserves_confirmation_ux_without_db_url(
+        self,
+    ) -> None:
+        backend = mock.Mock()
+        preview = self.linked_preview()
+        backend.withdrawal_preview.return_value = preview
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        arguments = [
+            "--db-backend",
+            "linked-cli",
+            "--instrument-sha256",
+            self.digest,
+            "--procedure-version",
+            self.procedure_version,
+            "--request-received-at",
+            "2026-09-03T10:02:03+09:00",
+            "--invite-id",
+            self.invite_id,
+            "--expected-purpose",
+            "pi_manual_test",
+            "--dry-run",
+        ]
+        with (
+            mock.patch.object(
+                MODULE, "_new_linked_backend", return_value=backend
+            ),
+            mock.patch.dict(MODULE.os.environ, {}, clear=True),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            result = MODULE.main(arguments)
+        self.assertEqual(result, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        backend.withdrawal_preview.assert_called_once_with(
+            self.digest,
+            self.invite_id,
+            expected_purpose="pi_manual_test",
+        )
+        backend.withdrawal_delete.assert_not_called()
+        expected_scope = MODULE._scope_from_linked_preview(
+            preview, self.invite_id
+        )
+        phrase = MODULE.confirmation_phrase(
+            expected_scope,
+            self.digest,
+            self.procedure_version,
+            self.received_at,
+        )
+        rendered = stdout.getvalue()
+        self.assertIn("DRY RUN (read-only)", rendered)
+        self.assertIn("submissions=1, responses=12", rendered)
+        self.assertIn(f"Required confirmation phrase: {phrase}", rendered)
+        self.assertNotIn(self.invite_id, rendered)
+
+    def test_linked_backend_confirm_routes_exact_preview_to_delete(
+        self,
+    ) -> None:
+        backend = mock.Mock()
+        preview = self.linked_preview()
+        backend.withdrawal_preview.return_value = preview
+        scope = MODULE._scope_from_linked_preview(
+            preview, self.invite_id
+        )
+        phrase = MODULE.confirmation_phrase(
+            scope,
+            self.digest,
+            self.procedure_version,
+            self.received_at,
+        )
+        backend.withdrawal_delete.return_value = {
+            "operation": "WITHDRAWAL_DELETED",
+            "outcome": "deleted_submission",
+            "deleted_submissions": 1,
+            "deleted_responses": 12,
+            "deleted_identities": 1,
+            "deleted_invites": 1,
+            "verification_passed": True,
+            "audit_inserted": True,
+        }
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(
+                MODULE, "_new_linked_backend", return_value=backend
+            ),
+            mock.patch.dict(MODULE.os.environ, {}, clear=True),
+            contextlib.redirect_stdout(stdout),
+        ):
+            result = MODULE.main(
+                [
+                    "--db-backend",
+                    "linked-cli",
+                    "--instrument-sha256",
+                    self.digest,
+                    "--procedure-version",
+                    self.procedure_version,
+                    "--request-received-at",
+                    "2026-09-03T10:02:03+09:00",
+                    "--invite-id",
+                    self.invite_id,
+                    "--confirm",
+                    phrase,
+                ]
+            )
+        self.assertEqual(result, 0)
+        backend.withdrawal_delete.assert_called_once_with(
+            self.digest,
+            self.invite_id,
+            self.procedure_version,
+            "2026-09-03T01:02:03Z",
+            MODULE._linked_preview_payload(scope),
+            expected_purpose=None,
+        )
+        self.assertIn("DELETED AND VERIFIED", stdout.getvalue())
+        self.assertIn(
+            "non-identifying withdrawal completion audit",
+            stdout.getvalue(),
+        )
+        self.assertNotIn(self.invite_id, stdout.getvalue())
+
+    def test_linked_ambiguous_delete_preserves_no_retry_safe_counts(
+        self,
+    ) -> None:
+        backend = mock.Mock()
+        preview = self.linked_preview()
+        backend.withdrawal_preview.return_value = preview
+        scope = MODULE._scope_from_linked_preview(
+            preview, self.invite_id
+        )
+        phrase = MODULE.confirmation_phrase(
+            scope,
+            self.digest,
+            self.procedure_version,
+            self.received_at,
+        )
+        backend.withdrawal_delete.side_effect = (
+            MODULE.LinkedCliAmbiguousOutcome({
+                "target_invites": 0,
+                "target_identities": 0,
+                "target_submissions": 0,
+                "target_responses": 0,
+                "matching_audits": 1,
+            })
+        )
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(
+                MODULE, "_new_linked_backend", return_value=backend
+            ),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            result = MODULE.main([
+                "--db-backend", "linked-cli",
+                "--instrument-sha256", self.digest,
+                "--procedure-version", self.procedure_version,
+                "--request-received-at",
+                "2026-09-03T10:02:03+09:00",
+                "--invite-id", self.invite_id,
+                "--expected-purpose", "pi_manual_test",
+                "--confirm", phrase,
+            ])
+        self.assertEqual(result, 1)
+        self.assertIn("DO NOT RETRY", stderr.getvalue())
+        self.assertIn("target_invites=0", stderr.getvalue())
+        self.assertIn("matching_audits=1", stderr.getvalue())
+        self.assertNotIn(self.invite_id, stderr.getvalue())
+        self.assertNotIn(self.digest, stderr.getvalue())
+        self.assertEqual(stdout.getvalue(), "")
+
+    def test_linked_backend_rejects_identity_selector_before_construction(
+        self,
+    ) -> None:
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(MODULE, "_new_linked_backend") as factory,
+            contextlib.redirect_stderr(stderr),
+        ):
+            result = MODULE.main(
+                [
+                    "--db-backend",
+                    "linked-cli",
+                    "--instrument-sha256",
+                    self.digest,
+                    "--procedure-version",
+                    self.procedure_version,
+                    "--request-received-at",
+                    "2026-09-03T01:02:03Z",
+                    "--identity-file",
+                    "must-not-be-read.json",
+                    "--dry-run",
+                ]
+            )
+        self.assertEqual(result, 2)
+        factory.assert_not_called()
+        self.assertIn("supports --invite-id only", stderr.getvalue())
+
+    def test_db_backend_defaults_to_direct(self) -> None:
+        args = MODULE.parser().parse_args(
+            [
+                "--instrument-sha256",
+                self.digest,
+                "--procedure-version",
+                self.procedure_version,
+                "--request-received-at",
+                "2026-09-03T01:02:03Z",
+                "--invite-id",
+                self.invite_id,
+                "--dry-run",
+            ]
+        )
+        self.assertEqual(args.db_backend, "direct")
 
 
 if __name__ == "__main__":

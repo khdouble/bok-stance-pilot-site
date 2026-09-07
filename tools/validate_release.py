@@ -11,12 +11,24 @@ import re
 from pathlib import Path
 from typing import Any
 
-from build_public_instrument import RELEASE_SOURCE_PATHS
+from build_public_instrument import HOSTED_VERSION, RELEASE_SOURCE_PATHS
 from pi_config import (
     boolean_value,
     has_placeholder,
     parse_pi_values,
     validate_live_config,
+)
+from render_instrument_transition import (
+    BASELINE_SEED_RELATIVE,
+    BASELINE_SEED_SHA256,
+    CURRENT_INSTRUMENT_RELATIVE,
+    PREVIOUS_HOSTED_VERSION,
+    PREVIOUS_INSTRUMENT_RELATIVE,
+    PREVIOUS_INSTRUMENT_SHA256,
+    TRANSITION_MIGRATION_RELATIVE,
+    load_json as load_unique_json,
+    render_sql as render_transition_sql,
+    validate_transition,
 )
 
 EXPECTED_API_URL = (
@@ -119,6 +131,8 @@ def validate(root: Path, source_pilot: Path, expected_fielding: str) -> Validati
     instrument_path = docs / "instrument.json"
     config_path = docs / "site-config.js"
     index_path = docs / "index.html"
+    admin_page_path = docs / "admin.html"
+    admin_bridge_path = docs / "admin.js"
     app_path = docs / "app.js"
     contract_path = docs / "submission-contract.js"
     privacy_path = docs / "privacy.html"
@@ -127,6 +141,8 @@ def validate(root: Path, source_pilot: Path, expected_fielding: str) -> Validati
         docs / "instrument-hash.js",
         config_path,
         index_path,
+        admin_page_path,
+        admin_bridge_path,
         app_path,
         contract_path,
         docs / "styles.css",
@@ -139,6 +155,11 @@ def validate(root: Path, source_pilot: Path, expected_fielding: str) -> Validati
         root / "supabase" / "functions" / "pilot-api" / "index.ts",
         root / "supabase" / "functions" / "pilot-api" / "_shared" / "core.ts",
         root / "supabase" / "migrations" / "202609030001_pilot_backend.sql",
+        root / BASELINE_SEED_RELATIVE,
+        root / "supabase" / "migrations" / "202609030003_pilot_withdrawal_audit.sql",
+        root / "supabase" / "migrations" / "202609030004_pi_manual_test_credentials.sql",
+        root / TRANSITION_MIGRATION_RELATIVE,
+        root / PREVIOUS_INSTRUMENT_RELATIVE,
     ]
     validation.check(
         "required_public_files",
@@ -148,7 +169,21 @@ def validate(root: Path, source_pilot: Path, expected_fielding: str) -> Validati
     if validation.failures:
         return validation
 
-    instrument = json.loads(instrument_path.read_text(encoding="utf-8"))
+    try:
+        instrument_document = load_unique_json(instrument_path)
+    except ValueError:
+        validation.check(
+            "instrument_json_unique",
+            False,
+            "instrument must be one unique-key UTF-8 JSON object",
+        )
+        return validation
+    validation.check(
+        "instrument_json_unique",
+        True,
+        "instrument is one unique-key UTF-8 JSON object",
+    )
+    instrument = dict(instrument_document)
     declared_hash = instrument.pop("instrument_sha256", "")
     calculated_hash = sha256_bytes(canonical_json(instrument))
     hash_js = (docs / "instrument-hash.js").read_text(encoding="utf-8")
@@ -162,7 +197,7 @@ def validate(root: Path, source_pilot: Path, expected_fielding: str) -> Validati
     validation.check(
         "hosted_parent_distinct",
         declared_hash != instrument.get("source_offline_instrument_sha256")
-        and instrument.get("hosted_version") == "v260903-pilot-hosted-1",
+        and instrument.get("hosted_version") == HOSTED_VERSION,
         (
             f"hosted={declared_hash} "
             f"parent={instrument.get('source_offline_instrument_sha256')}"
@@ -254,6 +289,8 @@ def validate(root: Path, source_pilot: Path, expected_fielding: str) -> Validati
 
     config_text = config_path.read_text(encoding="utf-8")
     index_text = index_path.read_text(encoding="utf-8")
+    admin_page_text = admin_page_path.read_text(encoding="utf-8")
+    admin_bridge_text = admin_bridge_path.read_text(encoding="utf-8")
     app_text = app_path.read_text(encoding="utf-8")
     contract_text = contract_path.read_text(encoding="utf-8")
     privacy_text = privacy_path.read_text(encoding="utf-8")
@@ -263,6 +300,28 @@ def validate(root: Path, source_pilot: Path, expected_fielding: str) -> Validati
         and EXPECTED_API_URL.rsplit("/functions/", 1)[0] in index_text
         and EXPECTED_ORIGIN in config_text,
         "configured GitHub origin and Supabase function endpoint",
+    )
+    admin_csp_match = re.search(
+        r'<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"',
+        admin_page_text,
+    )
+    admin_csp = admin_csp_match.group(1) if admin_csp_match else ""
+    validation.check(
+        "admin_surface_pinned_and_isolated",
+        'data-pilot-mode="admin"' in admin_page_text
+        and 'src="admin.js"' in admin_page_text
+        and admin_page_text.index('src="admin.js"')
+        < admin_page_text.index('src="app.js"')
+        and "admin.js" not in index_text
+        and EXPECTED_API_URL in admin_bridge_text
+        and "default-src 'none'" in admin_csp
+        and "connect-src 'self' "
+        + EXPECTED_API_URL.rsplit("/functions/", 1)[0]
+        in admin_csp
+        and "base-uri 'none'" in admin_csp
+        and "form-action 'none'" in admin_csp
+        and not re.search(r"<script(?!\s+src=)[^>]*>", admin_page_text),
+        "admin page, bridge, API endpoint, and CSP are exact and isolated",
     )
     csp_match = re.search(
         r'<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"',
@@ -340,21 +399,37 @@ def validate(root: Path, source_pilot: Path, expected_fielding: str) -> Validati
         "privacy notice contains mandatory headings",
     )
 
-    seed_paths = sorted(
-        (root / "supabase" / "migrations").glob("*_seed_pilot_instrument.sql")
-    )
-    seed_text = (
-        seed_paths[0].read_text(encoding="utf-8")
-        if len(seed_paths) == 1
-        else ""
-    )
+    baseline_seed_path = root / BASELINE_SEED_RELATIVE
+    baseline_seed_bytes = baseline_seed_path.read_bytes()
+    baseline_seed_text = baseline_seed_bytes.decode("utf-8")
     validation.check(
-        "instrument_seed_parity",
-        len(seed_paths) == 1
-        and declared_hash in seed_text
-        and "__PILOT_" not in seed_text
-        and seed_text.count("PILOT_R") >= 5,
-        f"seed_files={len(seed_paths)} hash={declared_hash}",
+        "immutable_baseline_seed",
+        sha256_bytes(baseline_seed_bytes) == BASELINE_SEED_SHA256
+        and PREVIOUS_INSTRUMENT_SHA256 in baseline_seed_text
+        and PREVIOUS_HOSTED_VERSION in baseline_seed_text,
+        f"path={BASELINE_SEED_RELATIVE.as_posix()}",
+    )
+    transition_path = root / TRANSITION_MIGRATION_RELATIVE
+    try:
+        previous_instrument = load_unique_json(root / PREVIOUS_INSTRUMENT_RELATIVE)
+        transition_contract = validate_transition(
+            previous_instrument,
+            instrument_document,
+            root,
+        )
+        expected_transition = render_transition_sql(
+            transition_contract,
+            PREVIOUS_INSTRUMENT_RELATIVE,
+            CURRENT_INSTRUMENT_RELATIVE,
+        ).encode("utf-8")
+        actual_transition = transition_path.read_bytes()
+        transition_ok = actual_transition == expected_transition
+    except (OSError, UnicodeError, ValueError):
+        transition_ok = False
+    validation.check(
+        "instrument_transition_lineage",
+        transition_ok,
+        f"path={TRANSITION_MIGRATION_RELATIVE.as_posix()} current={declared_hash}",
     )
 
     try:
@@ -380,14 +455,29 @@ def validate(root: Path, source_pilot: Path, expected_fielding: str) -> Validati
         ),
     )
     deployment_path = docs / "deployment-manifest.json"
-    deployment = json.loads(deployment_path.read_text(encoding="utf-8"))
+    try:
+        deployment = load_unique_json(deployment_path)
+    except ValueError:
+        deployment = {}
     deployment_hash = deployment.pop("deployment_manifest_sha256", "")
     deployment_files = {
         "privacy_notice": privacy_path,
         "site_config": config_path,
     }
     deployment_ok = (
-        deployment_hash == sha256_bytes(canonical_json(deployment))
+        set(deployment)
+        == {
+            "schema_version",
+            "deployment_state",
+            "site_url",
+            "api_url",
+            "hosted_version",
+            "instrument_sha256",
+            "operational_file_hashes",
+            "deployment_source_hashes",
+        }
+        and deployment.get("schema_version") == "1.0"
+        and deployment_hash == sha256_bytes(canonical_json(deployment))
         and deployment.get("deployment_state") == expected_fielding
         and deployment.get("instrument_sha256") == declared_hash
         and deployment.get("hosted_version") == instrument.get("hosted_version")
@@ -398,6 +488,10 @@ def validate(root: Path, source_pilot: Path, expected_fielding: str) -> Validati
         == {
             name: sha256_file(path)
             for name, path in sorted(deployment_files.items())
+        }
+        and deployment.get("deployment_source_hashes")
+        == {
+            "database_instrument_transition": sha256_file(transition_path)
         }
     )
     validation.check(

@@ -9,7 +9,8 @@ if (-not (Test-Path -LiteralPath $code -PathType Leaf)) {
 $previousElectronMode = $env:ELECTRON_RUN_AS_NODE
 $tests = @(
     "tools/test_submission_contract.mjs",
-    "tools/run_core_tests_node.mjs"
+    "tools/run_core_tests_node.mjs",
+    "tools/test_admin_frontend.mjs"
 )
 try {
     $env:ELECTRON_RUN_AS_NODE = "1"

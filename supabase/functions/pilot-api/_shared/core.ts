@@ -13,6 +13,7 @@ export const REASON_CODES = [
 const HEX_64 = /^[0-9a-f]{64}$/;
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ITEM_ID = /^[A-Za-z0-9_-]{1,64}$/;
+const ADMIN_ID = /^PI-[A-Z0-9]{12}$/;
 const CONTROL_CHARS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 
 export class ClientError extends Error {
@@ -32,6 +33,13 @@ type JsonObject = Record<string, unknown>;
 export interface LoadRequest {
   action: "load";
   invite_token: string;
+  instrument_sha256: string;
+}
+
+export interface AdminLoadRequest {
+  action: 'admin_load';
+  admin_id: string;
+  admin_password: string;
   instrument_sha256: string;
 }
 
@@ -69,6 +77,20 @@ export interface FeedbackRecord {
   zero_vs_99_explanation: string;
   change_vs_stance_explanation: string;
   ui_error_note: string;
+}
+
+export interface AdminSubmitRequest {
+  action: 'admin_submit';
+  admin_id: string;
+  admin_password: string;
+  instrument_sha256: string;
+  consent: ConsentRecord;
+  identity: IdentityRecord;
+  session: SessionRecord;
+  responses: ResponseRecord[];
+  feedback: FeedbackRecord;
+  payload_sha256: string;
+  idempotency_key: string;
 }
 
 export interface SubmitRequest {
@@ -159,6 +181,33 @@ function normalizePhone(value: unknown): string {
   return phone;
 }
 
+function adminAuthFailed(): ClientError {
+  return new ClientError(
+    403,
+    'ADMIN_AUTH_FAILED',
+    'The PI manual-test credential is unavailable.',
+  );
+}
+
+function validateAdminCredential(
+  adminId: unknown,
+  adminPassword: unknown,
+): { admin_id: string; admin_password: string } {
+  if (
+    typeof adminId !== 'string' ||
+    !ADMIN_ID.test(adminId) ||
+    typeof adminPassword !== 'string'
+  ) {
+    throw adminAuthFailed();
+  }
+  try {
+    decodeBase64Url256(adminPassword, 'admin_password');
+  } catch {
+    throw adminAuthFailed();
+  }
+  return { admin_id: adminId, admin_password: adminPassword };
+}
+
 export function validateLoadRequest(input: unknown): LoadRequest {
   const body = objectValue(input, "request");
   exactKeys(body, ["action", "invite_token", "instrument_sha256"], [], "request");
@@ -168,6 +217,31 @@ export function validateLoadRequest(input: unknown): LoadRequest {
   return {
     action: "load",
     invite_token: textValue(body.invite_token, "invite_token", 43, 43, false),
+    instrument_sha256: instrumentHash(body.instrument_sha256),
+  };
+}
+
+export function validateAdminLoadRequest(input: unknown): AdminLoadRequest {
+  const body = objectValue(input, 'request');
+  if (!('admin_id' in body) || !('admin_password' in body)) {
+    throw adminAuthFailed();
+  }
+  exactKeys(
+    body,
+    ['action', 'admin_id', 'admin_password', 'instrument_sha256'],
+    [],
+    'request',
+  );
+  if (body.action !== 'admin_load') {
+    throw new ClientError(400, 'INVALID_ACTION', 'action must be admin_load.');
+  }
+  const credential = validateAdminCredential(
+    body.admin_id,
+    body.admin_password,
+  );
+  return {
+    action: 'admin_load',
+    ...credential,
     instrument_sha256: instrumentHash(body.instrument_sha256),
   };
 }
@@ -434,7 +508,66 @@ export function canonicalJson(value: unknown): string {
   throw new Error("Unsupported canonical JSON value.");
 }
 
-export function payloadDigestBasis(request: SubmitRequest): JsonObject {
+export function validateAdminSubmitRequest(
+  input: unknown,
+  expectedConsentVersion: string,
+  nowMs = Date.now(),
+): AdminSubmitRequest {
+  const body = objectValue(input, 'request');
+  if (!('admin_id' in body) || !('admin_password' in body)) {
+    throw adminAuthFailed();
+  }
+  exactKeys(body, [
+    'action',
+    'admin_id',
+    'admin_password',
+    'instrument_sha256',
+    'consent',
+    'identity',
+    'session',
+    'responses',
+    'feedback',
+    'payload_sha256',
+    'idempotency_key',
+  ], [], 'request');
+  if (body.action !== 'admin_submit') {
+    throw new ClientError(
+      400,
+      'INVALID_ACTION',
+      'action must be admin_submit.',
+    );
+  }
+  const credential = validateAdminCredential(
+    body.admin_id,
+    body.admin_password,
+  );
+  const participantBody: JsonObject = { ...body };
+  participantBody.action = 'submit';
+  participantBody.invite_token = 'A'.repeat(43);
+  delete participantBody.admin_id;
+  delete participantBody.admin_password;
+  const normalized = validateSubmitRequest(
+    participantBody,
+    expectedConsentVersion,
+    nowMs,
+  );
+  return {
+    action: 'admin_submit',
+    ...credential,
+    instrument_sha256: normalized.instrument_sha256,
+    consent: normalized.consent,
+    identity: normalized.identity,
+    session: normalized.session,
+    responses: normalized.responses,
+    feedback: normalized.feedback,
+    payload_sha256: normalized.payload_sha256,
+    idempotency_key: normalized.idempotency_key,
+  };
+}
+
+export function payloadDigestBasis(
+  request: SubmitRequest | AdminSubmitRequest,
+): JsonObject {
   return {
     consent: request.consent,
     feedback: request.feedback,

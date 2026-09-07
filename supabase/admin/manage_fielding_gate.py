@@ -21,6 +21,10 @@ from pathlib import Path
 from typing import Mapping
 from urllib.parse import unquote, urlsplit
 
+try:
+    from .linked_cli_backend import LinkedCliBackend, LinkedCliError
+except ImportError:  # Direct script execution from the repository root.
+    from linked_cli_backend import LinkedCliBackend, LinkedCliError
 
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 PROJECT_REF_RE = re.compile(r"^[a-z0-9]{20}$")
@@ -33,6 +37,30 @@ ACTIONS = (
     "close-e2e",
     "open-production",
     "close",
+)
+DIRECT_BACKEND = "direct"
+LINKED_CLI_BACKEND = "linked-cli"
+DB_BACKENDS = (DIRECT_BACKEND, LINKED_CLI_BACKEND)
+EXPECTED_HOSTED_VERSION = "v260903-pilot-hosted-2"
+EXPECTED_SITE_URL = "https://khdouble.github.io/bok-stance-pilot-site/"
+EXPECTED_API_URL = (
+    "https://mebisrsvasrzwkmsodsw.supabase.co/functions/v1/pilot-api"
+)
+TRANSITION_MIGRATION_RELATIVE = Path(
+    "supabase/migrations/202609030005_activate_hosted_instrument_v2.sql"
+)
+EXPECTED_MANIFEST_KEYS = frozenset(
+    {
+        "deployment_manifest_sha256",
+        "schema_version",
+        "deployment_state",
+        "site_url",
+        "api_url",
+        "hosted_version",
+        "instrument_sha256",
+        "operational_file_hashes",
+        "deployment_source_hashes",
+    }
 )
 
 
@@ -247,7 +275,8 @@ def _locked_invites(cursor, instrument_sha256: str) -> list[tuple]:
             revoked_at is null
             and used_at is null
             and expires_at > now()
-          ) as eligible
+          ) as eligible,
+          invite_purpose
         from private.pilot_invites
         where instrument_sha256 = %s
         order by invite_id
@@ -355,6 +384,7 @@ def mutate_gate(
                         len(unrevoked) != 1
                         or len(eligible) != 1
                         or str(eligible[0][0]) != invite_id
+                        or str(eligible[0][4]) != "disposable_e2e"
                     ):
                         raise GateError(
                             "E2E opening requires exactly the specified one "
@@ -367,6 +397,10 @@ def mutate_gate(
                     if (
                         len(unrevoked) != 5
                         or len(eligible) != 5
+                        or any(
+                            str(row[4]) != "participant"
+                            for row in unrevoked
+                        )
                         or assignments != EXPECTED_ASSIGNMENTS
                     ):
                         raise GateError(
@@ -388,6 +422,7 @@ def mutate_gate(
                     set revoked_at = coalesce(revoked_at, now())
                     where instrument_sha256 = %s
                       and invite_id = %s::uuid
+                      and invite_purpose = 'disposable_e2e'
                     """,
                     (instrument_sha256, invite_id),
                 )
@@ -401,6 +436,7 @@ def mutate_gate(
                     from private.pilot_invites
                     where instrument_sha256 = %s
                       and invite_id = %s::uuid
+                      and invite_purpose = 'disposable_e2e'
                     """,
                     (instrument_sha256, invite_id),
                 )
@@ -421,6 +457,39 @@ def _canonical_json(value: object) -> bytes:
 
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _reject_duplicate_json_keys(
+    pairs: list[tuple[str, object]],
+) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_nonfinite_json_constant(value: str) -> None:
+    raise ValueError(f"non-finite JSON constant: {value}")
+
+
+def _load_unique_json_object(path: Path) -> dict[str, object]:
+    try:
+        loaded = json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=_reject_duplicate_json_keys,
+            parse_constant=_reject_nonfinite_json_constant,
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        raise GateError(
+            "local live deployment manifest is missing, stale, or invalid"
+        ) from exc
+    if not isinstance(loaded, dict):
+        raise GateError(
+            "local live deployment manifest is missing, stale, or invalid"
+        )
+    return loaded
 
 
 def assert_local_live_release(
@@ -451,23 +520,45 @@ def assert_local_live_release(
             "local PI configuration is not a validated live release"
         )
 
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest = _load_unique_json_object(manifest_path)
     declared_hash = manifest.get("deployment_manifest_sha256", "")
     payload = {
         key: value
         for key, value in manifest.items()
         if key != "deployment_manifest_sha256"
     }
-    expected_file_hashes = {
-        "privacy_notice": _sha256_file(privacy_path),
-        "site_config": _sha256_file(config_path),
-    }
+    try:
+        expected_file_hashes = {
+            "privacy_notice": _sha256_file(privacy_path),
+            "site_config": _sha256_file(config_path),
+        }
+        expected_source_hashes = {
+            "database_instrument_transition": _sha256_file(
+                repository_root / TRANSITION_MIGRATION_RELATIVE
+            )
+        }
+        local_version = local_instrument_version(
+            repository_root, instrument_sha256
+        )
+    except OSError as exc:
+        raise GateError(
+            "local live deployment manifest is missing, stale, or invalid"
+        ) from exc
     calculated_hash = hashlib.sha256(_canonical_json(payload)).hexdigest()
     if (
-        manifest.get("deployment_state") != "live"
+        set(manifest) != EXPECTED_MANIFEST_KEYS
+        or manifest.get("schema_version") != "1.0"
+        or manifest.get("deployment_state") != "live"
+        or manifest.get("site_url") != EXPECTED_SITE_URL
+        or manifest.get("api_url") != EXPECTED_API_URL
+        or local_version != EXPECTED_HOSTED_VERSION
+        or manifest.get("hosted_version") != local_version
         or manifest.get("instrument_sha256") != instrument_sha256
         or manifest.get("operational_file_hashes") != expected_file_hashes
+        or manifest.get("deployment_source_hashes")
+        != expected_source_hashes
         or not isinstance(declared_hash, str)
+        or not HASH_RE.fullmatch(declared_hash)
         or not hmac.compare_digest(declared_hash, calculated_hash)
     ):
         raise GateError(
@@ -475,9 +566,51 @@ def assert_local_live_release(
         )
 
 
+def local_instrument_version(
+    repository_root: Path,
+    instrument_sha256: str,
+) -> str:
+    try:
+        payload = json.loads(
+            (repository_root / "docs" / "instrument.json").read_text(
+                encoding="utf-8"
+            )
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise GateError("local instrument identity is invalid") from exc
+    version = payload.get("hosted_version") if isinstance(payload, dict) else None
+    if (
+        not isinstance(payload, dict)
+        or payload.get("instrument_sha256") != instrument_sha256
+        or not isinstance(version, str)
+        or not re.fullmatch(
+            r"^v[0-9]{6}-pilot-hosted-[1-9][0-9]*$", version
+        )
+    ):
+        raise GateError("local instrument identity is invalid")
+    return version
+
+
+def validate_backend_action(action: str, db_backend: str) -> None:
+    if db_backend not in DB_BACKENDS:
+        raise ValueError("database backend is invalid")
+    if (
+        db_backend == LINKED_CLI_BACKEND
+        and action in {"open-production", "close"}
+    ):
+        raise ValueError(
+            f"linked-cli does not support {action}; use the direct backend"
+        )
+
+
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     result.add_argument("action", choices=ACTIONS)
+    result.add_argument(
+        "--db-backend",
+        choices=DB_BACKENDS,
+        default=DIRECT_BACKEND,
+    )
     result.add_argument("--instrument-sha256", required=True)
     result.add_argument(
         "--project-ref",
@@ -550,9 +683,33 @@ def main(argv: list[str] | None = None) -> int:
             invite_id,
             args.confirm,
         )
+        validate_backend_action(args.action, args.db_backend)
         project_ref = resolve_project_ref(
             repository_root, args.project_ref
         )
+        if args.db_backend == LINKED_CLI_BACKEND:
+            backend = LinkedCliBackend()
+            if args.action == "status":
+                print_status(backend.read_status(instrument_sha256))
+            elif args.action == "open-e2e":
+                assert invite_id is not None
+                backend.open_e2e(
+                    instrument_sha256,
+                    local_instrument_version(
+                        repository_root, instrument_sha256
+                    ),
+                    invite_id,
+                )
+                print(
+                    "Completed open-e2e; run status to independently verify."
+                )
+            elif args.action == "close-e2e":
+                assert invite_id is not None
+                backend.close_e2e(instrument_sha256, invite_id)
+                print(
+                    "Completed close-e2e; run status to independently verify."
+                )
+            return 0
         if args.action == "open-production":
             assert_local_live_release(
                 repository_root, instrument_sha256
@@ -573,7 +730,7 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 f"Completed {args.action}; run status to independently verify."
             )
-    except (GateError, OSError, ValueError) as exc:
+    except (GateError, LinkedCliError, OSError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
     except Exception as exc:  # Do not print DB connection details or credentials.

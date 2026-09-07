@@ -20,8 +20,10 @@ from typing import Any, Mapping, NamedTuple, Sequence
 
 try:
     from .private_storage import PRIVATE_ROOT_ENV, private_child
+    from .linked_cli_backend import LinkedCliAmbiguousOutcome
 except ImportError:  # Direct script execution from the repository root.
     from private_storage import PRIVATE_ROOT_ENV, private_child
+    from linked_cli_backend import LinkedCliAmbiguousOutcome
 
 
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -35,6 +37,13 @@ CONTROL_CHARS_RE = re.compile(
 IDENTITY_HMAC_DOMAIN = b"bok-pilot-identity-v1\0"
 CONFIRMATION_DOMAIN = b"bok-pilot-withdrawal-confirm-v1\0"
 COUNT_KEYS = ("submissions", "responses", "identities", "invites")
+AMBIGUOUS_WITHDRAWAL_COUNT_KEYS = (
+    "target_invites",
+    "target_identities",
+    "target_submissions",
+    "target_responses",
+    "matching_audits",
+)
 
 FIND_IDENTITY_INVITES_SQL = """
 select invite_id
@@ -714,6 +723,20 @@ def connect_database(database_url: str) -> Any:
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
+    result.add_argument(
+        '--expected-purpose',
+        choices=('participant', 'disposable_e2e', 'pi_manual_test'),
+        help=(
+            'Linked backend only: require this exact credential purpose '
+            'again inside preview and delete'
+        ),
+    )
+    result.add_argument(
+        "--db-backend",
+        choices=("direct", "linked-cli"),
+        default="direct",
+        help="Database transport; direct preserves the existing psycopg path",
+    )
     result.add_argument("--instrument-sha256", required=True)
     result.add_argument("--procedure-version", required=True)
     result.add_argument(
@@ -753,6 +776,94 @@ def parser() -> argparse.ArgumentParser:
     return result
 
 
+def _new_linked_backend() -> Any:
+    try:
+        from .linked_cli_backend import LinkedCliBackend
+    except ImportError:  # Direct script execution from the repository root.
+        from linked_cli_backend import LinkedCliBackend
+    return LinkedCliBackend()
+
+
+def _scope_from_linked_preview(
+    preview: Mapping[str, object],
+    invite_id: str,
+) -> WithdrawalScope:
+    expected_keys = {
+        "outcome",
+        "submissions",
+        "responses",
+        "identities",
+        "invites",
+        "confirmation_tag",
+    }
+    if not isinstance(preview, Mapping) or set(preview) != expected_keys:
+        raise WithdrawalError("linked withdrawal preview was invalid")
+    outcome = preview["outcome"]
+    expected_counts = (
+        {"submissions": 0, "responses": 0, "identities": 0, "invites": 1}
+        if outcome == "deleted_unused_invite"
+        else {"submissions": 1, "responses": 12, "identities": 1, "invites": 1}
+        if outcome == "deleted_submission"
+        else None
+    )
+    if expected_counts is None or any(
+        type(preview[key]) is not int or preview[key] != count
+        for key, count in expected_counts.items()
+    ):
+        raise WithdrawalError("linked withdrawal preview was invalid")
+    tag = preview["confirmation_tag"]
+    if (
+        not isinstance(tag, str)
+        or not hmac.compare_digest(tag, invite_confirmation_tag(invite_id))
+    ):
+        raise WithdrawalError("linked withdrawal preview was invalid")
+    return WithdrawalScope(
+        invite_id,
+        None,
+        None,
+        str(outcome),
+        expected_counts,
+        tag,
+    )
+
+
+def _linked_preview_payload(scope: WithdrawalScope) -> dict[str, object]:
+    return {
+        "outcome": scope.outcome,
+        **scope.counts,
+        "confirmation_tag": scope.confirmation_tag,
+    }
+
+
+def _counts_from_linked_result(
+    result: Mapping[str, object],
+    scope: WithdrawalScope,
+) -> dict[str, int]:
+    expected = {
+        "operation": "WITHDRAWAL_DELETED",
+        "outcome": scope.outcome,
+        "deleted_submissions": scope.counts["submissions"],
+        "deleted_responses": scope.counts["responses"],
+        "deleted_identities": scope.counts["identities"],
+        "deleted_invites": scope.counts["invites"],
+        "verification_passed": True,
+        "audit_inserted": True,
+    }
+    if (
+        not isinstance(result, Mapping)
+        or set(result) != set(expected)
+        or any(type(result[key]) is not type(value) or result[key] != value
+               for key, value in expected.items())
+    ):
+        raise WithdrawalError("linked withdrawal deletion attestation was invalid")
+    return {
+        "submissions": int(result["deleted_submissions"]),
+        "responses": int(result["deleted_responses"]),
+        "identities": int(result["deleted_identities"]),
+        "invites": int(result["deleted_invites"]),
+    }
+
+
 def _print_counts(prefix: str, counts: Mapping[str, int]) -> None:
     print(
         f"{prefix}: submissions={counts['submissions']}, "
@@ -766,6 +877,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     repository_root = Path(__file__).resolve().parents[2]
     try:
+        if args.expected_purpose is not None and args.db_backend != 'linked-cli':
+            raise ValueError(
+                '--expected-purpose is supported only by linked-cli'
+            )
         digest = parse_instrument_sha256(args.instrument_sha256)
         received_at = parse_timestamp(
             args.request_received_at,
@@ -779,6 +894,10 @@ def main(argv: list[str] | None = None) -> int:
             args.procedure_version,
             received_at,
         )
+        if args.db_backend == "linked-cli" and args.identity_file is not None:
+            raise ValueError(
+                "--db-backend linked-cli supports --invite-id only"
+            )
         if args.invite_id is not None:
             selector = Selector(
                 "invite_id",
@@ -801,19 +920,30 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
 
-    database_url = os.environ.get("SUPABASE_DB_URL", "").strip()
-    if not database_url:
-        print(
-            "ERROR: server-only SUPABASE_DB_URL is required "
-            "in the current process.",
-            file=sys.stderr,
-        )
-        return 2
-
     connection = None
+    linked_backend = None
     try:
-        connection = connect_database(database_url)
-        scope = preview_withdrawal(connection, selector, digest)
+        if args.db_backend == "linked-cli":
+            linked_backend = _new_linked_backend()
+            preview = linked_backend.withdrawal_preview(
+                digest,
+                selector.database_value,
+                expected_purpose=args.expected_purpose,
+            )
+            scope = _scope_from_linked_preview(
+                preview, selector.database_value
+            )
+        else:
+            database_url = os.environ.get("SUPABASE_DB_URL", "").strip()
+            if not database_url:
+                print(
+                    "ERROR: server-only SUPABASE_DB_URL is required "
+                    "in the current process.",
+                    file=sys.stderr,
+                )
+                return 2
+            connection = connect_database(database_url)
+            scope = preview_withdrawal(connection, selector, digest)
         required_phrase = confirmation_phrase(
             scope,
             digest,
@@ -836,17 +966,42 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
             return 2
-        counts, _event_id = delete_withdrawn_participant(
-            connection,
-            selector,
-            digest,
-            version,
-            received_at,
-            scope,
-        )
+        if linked_backend is not None:
+            result = linked_backend.withdrawal_delete(
+                digest,
+                selector.database_value,
+                version,
+                utc_text(received_at),
+                _linked_preview_payload(scope),
+                expected_purpose=args.expected_purpose,
+            )
+            counts = _counts_from_linked_result(result, scope)
+        else:
+            counts, _event_id = delete_withdrawn_participant(
+                connection,
+                selector,
+                digest,
+                version,
+                received_at,
+                scope,
+            )
         _print_counts("DELETED AND VERIFIED", counts)
         print("A non-identifying withdrawal completion audit was recorded.")
         return 0
+    except LinkedCliAmbiguousOutcome as exc:
+        print(str(exc), file=sys.stderr)
+        safe_counts = [
+            f"{key}={exc.safe_attestation[key]}"
+            for key in AMBIGUOUS_WITHDRAWAL_COUNT_KEYS
+            if type(exc.safe_attestation.get(key)) is int
+            and 0 <= exc.safe_attestation[key] <= 1_000_000
+        ]
+        if safe_counts:
+            print(
+                "SAFE COUNTS: " + " ".join(safe_counts),
+                file=sys.stderr,
+            )
+        return 1
     except WithdrawalError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

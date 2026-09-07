@@ -35,6 +35,8 @@ CONFIG_URL = urljoin(SITE_URL, "site-config.js")
 API_URL = "https://mebisrsvasrzwkmsodsw.supabase.co/functions/v1/pilot-api"
 REMOTE_FILES = (
     "index.html",
+    "admin.html",
+    "admin.js",
     "app.js",
     "submission-contract.js",
     "styles.css",
@@ -45,6 +47,8 @@ REMOTE_FILES = (
     "deployment-manifest.json",
 )
 BROWSER_ASSETS = (
+    # The participant browser flow loads only these assets.  The separate
+    # REMOTE_FILES byte attestation covers the admin page and bridge.
     SITE_URL,
     urljoin(SITE_URL, "app.js"),
     urljoin(SITE_URL, "submission-contract.js"),
@@ -77,6 +81,15 @@ class SafeArgumentParser(argparse.ArgumentParser):
 
 def parser() -> argparse.ArgumentParser:
     result = SafeArgumentParser(description=__doc__)
+    result.add_argument(
+        "--db-backend",
+        choices=("direct", "linked-cli"),
+        default="direct",
+    )
+    result.add_argument(
+        "--confirm-open-e2e",
+        help="exact OPEN E2E FIELDING confirmation for linked-cli",
+    )
     result.add_argument(
         "--private-root",
         type=Path,
@@ -404,6 +417,8 @@ def validate_remote_release(
     remote: Mapping[str, bytes],
     local: Mapping[str, bytes],
     verified_at: datetime,
+    *,
+    transition_migration_path: Path | None = None,
 ) -> dict[str, Any]:
     """Fail unless GitHub Pages is the exact, internally consistent local build."""
     if set(remote) != set(REMOTE_FILES) or set(local) != set(REMOTE_FILES):
@@ -419,6 +434,18 @@ def validate_remote_release(
         raise E2EError("deployed manifest or instrument is not valid UTF-8 JSON") from exc
     if not isinstance(manifest, dict) or not isinstance(instrument, dict):
         raise E2EError("deployed manifest or instrument is not a JSON object")
+    if set(manifest) != {
+        "deployment_manifest_sha256",
+        "schema_version",
+        "deployment_state",
+        "site_url",
+        "api_url",
+        "hosted_version",
+        "instrument_sha256",
+        "operational_file_hashes",
+        "deployment_source_hashes",
+    }:
+        raise E2EError("deployed deployment manifest schema is invalid")
 
     declared_manifest_hash = manifest.get("deployment_manifest_sha256")
     manifest_basis = {
@@ -452,7 +479,9 @@ def validate_remote_release(
     tools_path = Path(__file__).resolve().parent
     if str(tools_path) not in sys.path:
         sys.path.insert(0, str(tools_path))
+    from build_public_instrument import RELEASE_SOURCE_PATHS
     from pi_config import boolean_value, quoted_value, validate_live_config
+    from render_instrument_transition import TRANSITION_MIGRATION_RELATIVE
 
     try:
         published_fielding = boolean_value(config_text, "fieldingEnabled")
@@ -501,10 +530,39 @@ def validate_remote_release(
         "site_config": _sha256(remote["site-config.js"]),
     }:
         raise E2EError("deployed operational asset hashes are stale")
+    repository_root = Path(__file__).resolve().parents[1]
+    transition_path = transition_migration_path or (
+        repository_root / TRANSITION_MIGRATION_RELATIVE
+    )
+    try:
+        expected_transition_hash = _sha256(transition_path.read_bytes())
+    except OSError as exc:
+        raise E2EError("could not attest the local instrument transition") from exc
+    if manifest.get("deployment_source_hashes") != {
+        "database_instrument_transition": expected_transition_hash
+    }:
+        raise E2EError("deployed transition migration hash is stale")
     release_hashes = instrument.get("release_source_hashes")
     if not isinstance(release_hashes, dict):
         raise E2EError("deployed instrument release hashes are missing")
+    try:
+        expected_local_release_hashes = {
+            name: _sha256((repository_root / relative).read_bytes())
+            for name, relative in RELEASE_SOURCE_PATHS.items()
+        }
+    except OSError as exc:
+        raise E2EError("could not attest local release sources") from exc
+    if (
+        set(release_hashes) != set(expected_local_release_hashes)
+        or any(
+            release_hashes.get(key) != value
+            for key, value in expected_local_release_hashes.items()
+        )
+    ):
+        raise E2EError("deployed release source hashes do not match local sources")
     required_release_hashes = {
+        "public_admin": _sha256(remote["admin.html"]),
+        "public_admin_bridge": _sha256(remote["admin.js"]),
         "public_app": _sha256(remote["app.js"]),
         "public_contract": _sha256(remote["submission-contract.js"]),
         "public_index": _sha256(remote["index.html"]),
@@ -531,8 +589,24 @@ def validate_remote_release(
     }
 
 
-def read_gate_status(repository_root: Path, instrument_sha256: str) -> dict[str, object]:
+def _new_linked_backend() -> Any:
+    from supabase.admin.linked_cli_backend import LinkedCliBackend
+    return LinkedCliBackend()
+
+
+def read_gate_status(
+    repository_root: Path,
+    instrument_sha256: str,
+    linked_backend: Any | None = None,
+) -> dict[str, object]:
     """Use manage_fielding_gate's read-only path; never mutate the DB gate."""
+    if linked_backend is not None:
+        try:
+            return linked_backend.read_status(instrument_sha256)
+        except Exception as exc:
+            raise E2EError(
+                "could not verify the read-only fielding-gate status"
+            ) from exc
     if str(repository_root) not in sys.path:
         sys.path.insert(0, str(repository_root))
     from supabase.admin import manage_fielding_gate
@@ -802,12 +876,14 @@ class CdpClient:
             if isinstance(url, str) and urlsplit(url).scheme.lower() in {"ws", "wss"}:
                 self.event_failure = "browser attempted an unexpected network destination"
 
-    def _receive_one(self, timeout: float) -> None:
+    def _receive_one(self, timeout: float) -> bool:
         try:
             raw = self.socket.recv(timeout=timeout)
             message = json.loads(raw)
-        except TimeoutError as exc:
-            raise E2EError("browser automation timed out") from exc
+        except TimeoutError:
+            # A quiet one-second polling interval is not the command deadline.
+            # The caller owns the overall deadline and may continue waiting.
+            return False
         except Exception as exc:
             raise E2EError("browser automation transport failed") from exc
         if not isinstance(message, dict):
@@ -816,6 +892,7 @@ class CdpClient:
             self.responses[message["id"]] = message
         else:
             self._handle_event(message)
+        return True
 
     def command(
         self,
@@ -1219,8 +1296,12 @@ def best_effort_close_e2e(
     repository_root: Path,
     instrument_sha256: str,
     invite_id: str,
+    linked_backend: Any | None = None,
 ) -> str:
     """Close the gate and revoke the current disposable invite without logging IDs."""
+    if linked_backend is not None:
+        linked_backend.close_e2e(instrument_sha256, invite_id)
+        return "CLOSED_AND_REVOKED"
     if str(repository_root) not in sys.path:
         sys.path.insert(0, str(repository_root))
     from supabase.admin import manage_fielding_gate
@@ -1260,7 +1341,10 @@ def main(argv: list[str] | None = None) -> int:
     receipt_path: Path | None = None
     release: dict[str, Any] | None = None
     browser_result: dict[str, object] | None = None
+    linked_backend: Any | None = None
+    linked_open_attempted = False
     failure: str | None = None
+    failure_stage = "private-invite"
     cleanup_result = "NOT_ATTEMPTED"
     try:
         tested_at = datetime.now(timezone.utc) - timedelta(seconds=2)
@@ -1270,13 +1354,16 @@ def main(argv: list[str] | None = None) -> int:
             args.invite_file,
             now=tested_at,
         )
+        failure_stage = "private-identity"
         identity, receipt_path = load_private_identity_and_receipt(
             repository_root,
             private_root,
             args.identity_file,
             args.receipt,
         )
+        failure_stage = "remote-assets"
         remote = fetch_remote_assets(timeout_seconds=min(args.timeout_seconds, 30))
+        failure_stage = "release-attestation"
         release = validate_remote_release(
             remote, local_assets(repository_root), tested_at
         )
@@ -1284,13 +1371,51 @@ def main(argv: list[str] | None = None) -> int:
         manifest = release["manifest"]
         if invite["instrument_sha256"] != instrument.get("instrument_sha256"):
             raise E2EError("disposable invite targets a different deployed instrument")
+        failure_stage = "browser-selection"
+        executable, browser_family = find_browser(args.browser)
+        if args.db_backend == "linked-cli":
+            if str(repository_root) not in sys.path:
+                sys.path.insert(0, str(repository_root))
+            from supabase.admin import manage_fielding_gate
+
+            failure_stage = "gate-argument-validation"
+            manage_fielding_gate.validate_action_arguments(
+                "open-e2e",
+                invite["instrument_sha256"],
+                invite["invite_id"],
+                args.confirm_open_e2e,
+            )
+            failure_stage = "linked-backend"
+            linked_backend = _new_linked_backend()
+            linked_open_attempted = True
+            failure_stage = "gate-open"
+            linked_backend.open_e2e(
+                invite["instrument_sha256"],
+                instrument.get("hosted_version"),
+                invite["invite_id"],
+            )
+        elif args.confirm_open_e2e is not None:
+            raise E2EError(
+                "--confirm-open-e2e is accepted only with linked-cli"
+            )
         print("PASS: deployed staging assets and identities are exact")
 
-        before = read_gate_status(repository_root, invite["instrument_sha256"])
+        failure_stage = "gate-precheck"
+        before = (
+            read_gate_status(
+                repository_root,
+                invite["instrument_sha256"],
+                linked_backend,
+            )
+            if linked_backend is not None
+            else read_gate_status(
+                repository_root, invite["instrument_sha256"]
+            )
+        )
         validate_gate_status(before, after=False)
         print("PASS: disposable E2E gate is open with zero prior submissions")
 
-        executable, browser_family = find_browser(args.browser)
+        failure_stage = "browser-flow"
         browser_result = run_browser_flow(
             executable,
             browser_family,
@@ -1300,19 +1425,41 @@ def main(argv: list[str] | None = None) -> int:
             instrument,
             args.timeout_seconds,
         )
-        after = read_gate_status(repository_root, invite["instrument_sha256"])
+        failure_stage = "gate-postcheck"
+        after = (
+            read_gate_status(
+                repository_root,
+                invite["instrument_sha256"],
+                linked_backend,
+            )
+            if linked_backend is not None
+            else read_gate_status(
+                repository_root, invite["instrument_sha256"]
+            )
+        )
         validate_gate_status(after, after=True)
     except (E2EError, FileExistsError, ValueError) as exc:
         failure = f"ERROR: {exc}"
     except Exception as exc:
         failure = f"ERROR: remote E2E failed ({type(exc).__name__})"
     finally:
-        if invite is not None:
+        if invite is not None and (
+            args.db_backend == "direct" or linked_open_attempted
+        ):
             try:
-                cleanup_result = best_effort_close_e2e(
-                    repository_root,
-                    invite["instrument_sha256"],
-                    invite["invite_id"],
+                cleanup_result = (
+                    best_effort_close_e2e(
+                        repository_root,
+                        invite["instrument_sha256"],
+                        invite["invite_id"],
+                        linked_backend,
+                    )
+                    if linked_backend is not None
+                    else best_effort_close_e2e(
+                        repository_root,
+                        invite["instrument_sha256"],
+                        invite["invite_id"],
+                    )
                 )
                 print("AUTO-CLEANUP: fielding closed and disposable invite revoked")
             except Exception:
@@ -1324,6 +1471,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
 
     if failure is not None:
+        print(f"FAILURE_STAGE: {failure_stage}", file=sys.stderr)
         print(failure, file=sys.stderr)
         return 1
     assert invite is not None
@@ -1387,6 +1535,7 @@ def main(argv: list[str] | None = None) -> int:
             ),
         )
     except (E2EError, FileExistsError, OSError, ValueError) as exc:
+        print("FAILURE_STAGE: receipt-write", file=sys.stderr)
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     print(

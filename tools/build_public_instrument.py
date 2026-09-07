@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 
-HOSTED_VERSION = "v260903-pilot-hosted-1"
+HOSTED_VERSION = "v260903-pilot-hosted-2"
 SOURCE_INSTRUMENT_SHA256 = (
     "b594a196eb7be720e57d974f4b5c6e4437b697e6ae20f01013e830af35707a51"
 )
@@ -23,6 +23,8 @@ PAYLOAD_COLUMNS = [
 ]
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RELEASE_SOURCE_PATHS = {
+    "public_admin": Path("docs/admin.html"),
+    "public_admin_bridge": Path("docs/admin.js"),
     "public_app": Path("docs/app.js"),
     "public_contract": Path("docs/submission-contract.js"),
     "public_index": Path("docs/index.html"),
@@ -33,7 +35,25 @@ RELEASE_SOURCE_PATHS = {
     "database_schema": Path(
         "supabase/migrations/202609030001_pilot_backend.sql"
     ),
+    "database_pi_manual_test": Path(
+        "supabase/migrations/202609030004_pi_manual_test_credentials.sql"
+    ),
 }
+EXPECTED_RELEASE_SOURCE_KEYS = frozenset(
+    {
+        "public_admin",
+        "public_admin_bridge",
+        "public_app",
+        "public_contract",
+        "public_index",
+        "public_styles",
+        "supabase_config",
+        "edge_function",
+        "edge_contract",
+        "database_schema",
+        "database_pi_manual_test",
+    }
+)
 
 
 def canonical_json(value: object) -> bytes:
@@ -74,6 +94,8 @@ def read_rows(path: Path) -> list[dict[str, object]]:
 
 
 def build(source_pilot: Path, output: Path) -> dict[str, object]:
+    if set(RELEASE_SOURCE_PATHS) != EXPECTED_RELEASE_SOURCE_KEYS:
+        raise RuntimeError("release source map must contain the exact 11 frozen keys")
     response_template = source_pilot / "response_template.csv"
     parent_manifest_path = source_pilot / "fieldwork" / "manifest.json"
     config_path = source_pilot / "pilot_fieldwork_config.json"
@@ -159,6 +181,7 @@ def build(source_pilot: Path, output: Path) -> dict[str, object]:
     output.write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
+        newline="\n",
     )
     hash_js = output.with_name("instrument-hash.js")
     hash_js.write_text(
@@ -166,6 +189,7 @@ def build(source_pilot: Path, output: Path) -> dict[str, object]:
         + json.dumps(instrument_sha256)
         + ";\n",
         encoding="utf-8",
+        newline="\n",
     )
     return result
 

@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "instrument_sha256": "4a07da2785bb2228787f2dd4e57339bd5c132111d693681a12cb62baf64978e7",
+  "hosted_version": "v260903-pilot-hosted-1",
+  "source_offline_instrument_sha256": "b594a196eb7be720e57d974f4b5c6e4437b697e6ae20f01013e830af35707a51",
+  "items_per_participant": 12,
+  "item_count": 12,
+  "assignment_set_count": 5,
+  "assignment_count": 60,
+  "research_basis_sha256": "caaf49aab8d37955bca827e8b82df93ba55aa1cd12227de9e7ea74d1ef112c6b"
+}

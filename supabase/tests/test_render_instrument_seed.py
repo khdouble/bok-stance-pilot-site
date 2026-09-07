@@ -16,6 +16,23 @@ assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
+FROZEN_INSTRUMENT_SHA256 = (
+    "4a07da2785bb2228787f2dd4e57339bd5c132111d693681a12cb62baf64978e7"
+)
+FROZEN_SEED_SHA256 = (
+    "c0a8116c0bc8551a4ac0fb77bf776385bc002ad6f26d8b575e83adbac353ebd2"
+)
+FROZEN_RELEASE_SOURCE_HASHES = {
+    "database_schema": "ac214e9a6d08b02cad8d14d97c6a049374c610b0f7ba54a6d0e1bb09796e895d",
+    "edge_contract": "8f40b7c744647a956951a71b60ff940ce03d564c7caf1eb1a2983a2e5a297c76",
+    "edge_function": "fecb6f47dcc88dae595b3acf2207ed5d9c61374989cf2d445e77f29e8fe93cb7",
+    "public_app": "1c8a65e24b39e05e2363daa4f68b79735f7d3c4276675610ebd937a470c3e299",
+    "public_contract": "5359b283c4d90bdbb9dd716c7a2be892e9f362df3949ebc8aa567da3c3043086",
+    "public_index": "250a521cba58b081ef774354ede7274dade952abf9729db8d6f68fc9d0bd329d",
+    "public_styles": "ea23e22cf0f2adf2e0707fa84e2e2f92efe73d231ea6ebc6d379b37813a80580",
+    "supabase_config": "62e27b64065d1802c260244e55f068856025ee4dc65a307ca67827ffe8308add",
+}
+
 
 def rehash(instrument: dict[str, object]) -> None:
     payload = dict(instrument)
@@ -26,6 +43,16 @@ def rehash(instrument: dict[str, object]) -> None:
 class RenderInstrumentSeedTest(unittest.TestCase):
     def setUp(self) -> None:
         self.instrument = MODULE.load_json(REPOSITORY / "docs" / "instrument.json")
+        self.instrument["hosted_version"] = MODULE.EXPECTED_HOSTED_VERSION
+        self.instrument["release_source_hashes"] = copy.deepcopy(
+            FROZEN_RELEASE_SOURCE_HASHES
+        )
+        rehash(self.instrument)
+        self.assertEqual(
+            self.instrument["instrument_sha256"],
+            FROZEN_INSTRUMENT_SHA256,
+            "current research payload has drifted from the immutable v1 baseline",
+        )
 
     def test_current_instrument_renders_expected_immutable_rows(self) -> None:
         validated = MODULE.validate_instrument(copy.deepcopy(self.instrument))
@@ -43,6 +70,10 @@ class RenderInstrumentSeedTest(unittest.TestCase):
         expected = MODULE.render_sql(validated, Path("docs/instrument.json"))
         actual_path = REPOSITORY / "supabase" / "migrations" / "202609030002_seed_pilot_instrument.sql"
         self.assertEqual(actual_path.read_text(encoding="utf-8"), expected)
+        self.assertEqual(
+            hashlib.sha256(actual_path.read_bytes()).hexdigest(),
+            FROZEN_SEED_SHA256,
+        )
 
     def test_writes_only_explicit_output_and_refuses_overwrite(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

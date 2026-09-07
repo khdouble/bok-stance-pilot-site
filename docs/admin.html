@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ko" data-pilot-mode="admin">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https://mebisrsvasrzwkmsodsw.supabase.co; img-src 'none'; font-src 'self'; object-src 'none'; frame-src 'none'; media-src 'none'; worker-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests">
+  <title>PI 수동 테스트 · 통화정책 문장 평가</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">PI manual test · synthetic only</p>
+      <h1>PI 전용 수동 테스트</h1>
+      <p>
+        연구책임자가 12문항 제출 흐름을 직접 점검하는 페이지입니다.
+        데이터베이스 관리 권한이나 참가자 자료 열람 권한을 제공하지 않습니다.
+      </p>
+    </header>
+
+    <div id="globalStatus" class="status info" role="status" aria-live="polite">
+      PI 수동 테스트를 준비하고 있습니다.
+    </div>
+    <div class="draft-tools">
+      <button id="clearDraft" type="button" class="secondary" hidden>
+        이 PI 테스트 세션의 임시 응답 삭제
+      </button>
+    </div>
+
+    <section id="blockedPanel" class="card" hidden>
+      <h2>PI 수동 테스트를 시작할 수 없습니다</h2>
+      <p id="blockedMessage">테스트 설정과 서버 상태를 확인해 주세요.</p>
+    </section>
+
+    <section id="invitePanel" class="card" hidden>
+      <h2>PI 수동 테스트 자격 확인</h2>
+      <div class="notice">
+        <p>
+          이 자격은 합성 사용성 테스트 한 건만 제출할 수 있으며 관리자 권한이
+          아닙니다. 제출자료는 연구 분석에서 항상 제외됩니다.
+        </p>
+        <p>
+          ID와 비밀번호는 현재 페이지의 메모리에만 두고 브라우저 저장소에는
+          저장하지 않습니다. 공용 기기나 화면 공유 중에는 사용하지 마세요.
+        </p>
+      </div>
+      <div class="form-grid">
+        <div>
+          <label for="adminId">PI 테스트 ID</label>
+          <input id="adminId" type="text" inputmode="text"
+                 autocomplete="off" autocapitalize="characters"
+                 spellcheck="false" minlength="15" maxlength="15">
+        </div>
+        <div>
+          <label for="adminPassword">PI 테스트 비밀번호</label>
+          <input id="adminPassword" type="password" inputmode="text"
+                 autocomplete="off" spellcheck="false"
+                 minlength="43" maxlength="43">
+        </div>
+      </div>
+      <p class="hint">
+        자격 확인 뒤 입력칸은 즉시 비워집니다. 새로고침하거나 창을 닫으면
+        자격과 미제출 응답은 복원되지 않습니다.
+      </p>
+      <button id="verifyInvite" type="button" class="primary">
+        PI 수동 테스트 시작
+      </button>
+    </section>
+
+    <section id="identityPanel" class="card" hidden>
+      <h2>합성 테스트 식별정보와 동의</h2>
+      <div class="notice">
+        <p>
+          실제 성명이나 실제 휴대전화번호를 입력하지 마세요. 지정된 합성
+          테스트 값만 사용하며, 이 제출은
+          <strong>synthetic_pi_manual_test</strong>로 저장되어 분석에서
+          영구 제외됩니다.
+        </p>
+        <p>
+          개인정보 처리와 철회 절차는
+          <a href="privacy.html" target="_blank" rel="noopener">개인정보 안내</a>에서
+          확인할 수 있습니다. 문항 메모나 피드백에도 개인정보를 적지 마세요.
+        </p>
+        <p>
+          이 페이지는 임시 응답과 시간 기록을 메모리에만 유지합니다.
+          새로고침하거나 창을 닫으면 미제출 자료는 사라집니다.
+        </p>
+      </div>
+
+      <div class="form-grid">
+        <div>
+          <label for="participantName">합성 테스트 성명</label>
+          <input id="participantName" type="text" autocomplete="off"
+                 maxlength="80" required>
+        </div>
+        <div>
+          <label for="participantPhone">합성 테스트 휴대전화번호</label>
+          <input id="participantPhone" type="tel" inputmode="tel"
+                 autocomplete="off" maxlength="20"
+                 placeholder="010-0000-0000" required>
+        </div>
+      </div>
+
+      <label class="check-row">
+        <input id="consentAccepted" type="checkbox">
+        <span>
+          PI 수동 테스트의 합성 식별정보와 응답자료 처리 방식을 확인했고
+          이에 동의합니다.
+        </span>
+      </label>
+      <button id="beginSurvey" type="button" class="primary">평가 시작</button>
+    </section>
+
+    <section id="surveyPanel" class="card" hidden>
+      <div class="progress-row">
+        <strong id="progressText">문항 1 / 12</strong>
+        <div class="progress-track" aria-hidden="true">
+          <div id="progressBar" class="progress-bar"></div>
+        </div>
+      </div>
+
+      <article class="item-box">
+        <p class="eyebrow">평가할 문장</p>
+        <p id="sentenceText" class="sentence"></p>
+      </article>
+
+      <fieldset>
+        <legend>이 문장이 나타내는 통화정책 기조를 선택해 주세요.</legend>
+        <div id="stanceChoices" class="choice-grid"></div>
+      </fieldset>
+
+      <div class="form-grid">
+        <div>
+          <label for="confidence">확신도</label>
+          <select id="confidence">
+            <option value="">선택</option>
+            <option value="1">1 매우 낮음</option>
+            <option value="2">2 낮음</option>
+            <option value="3">3 보통</option>
+            <option value="4">4 높음</option>
+            <option value="5">5 매우 높음</option>
+          </select>
+        </div>
+        <div>
+          <label for="reasonCode">이유 코드</label>
+          <select id="reasonCode">
+            <option value="">선택하지 않음</option>
+            <option value="NONE">NONE</option>
+            <option value="IRRELEVANT">IRRELEVANT</option>
+            <option value="CONTEXT_NEEDED">CONTEXT_NEEDED</option>
+            <option value="MIXED_UNRESOLVED">MIXED_UNRESOLVED</option>
+            <option value="TERMINOLOGY">TERMINOLOGY</option>
+            <option value="OTHER">OTHER</option>
+          </select>
+        </div>
+      </div>
+
+      <label for="reasonNote">이유 메모</label>
+      <textarea id="reasonNote" rows="3" maxlength="600"
+                placeholder="OTHER를 선택한 경우에만 간단히 적어 주세요. 개인정보는 적지 마세요."></textarea>
+
+      <p id="itemError" class="error-text" role="alert"></p>
+      <div class="actions">
+        <button id="previousItem" type="button" class="secondary">이전</button>
+        <button id="nextItem" type="button" class="primary">다음</button>
+      </div>
+    </section>
+
+    <section id="feedbackPanel" class="card" hidden>
+      <h2>사용성 피드백</h2>
+
+      <label for="fatigue">전체 피로도</label>
+      <select id="fatigue">
+        <option value="">선택</option>
+        <option value="1">1 매우 낮음</option>
+        <option value="2">2 낮음</option>
+        <option value="3">3 보통</option>
+        <option value="4">4 높음</option>
+        <option value="5">5 매우 높음</option>
+      </select>
+
+      <label for="zeroVs99">0과 99를 어떤 기준으로 구분했습니까?</label>
+      <textarea id="zeroVs99" rows="4" maxlength="1200"></textarea>
+
+      <label for="changeVsStance">
+        추가 정책변화와 현재 기조 유지를 어떤 기준으로 구분했습니까?
+      </label>
+      <textarea id="changeVsStance" rows="4" maxlength="1200"></textarea>
+
+      <label for="uiError">불편하거나 작동하지 않은 부분이 있었습니까?</label>
+      <textarea id="uiError" rows="3" maxlength="1200"
+                placeholder="없으면 비워 두어도 됩니다. 개인정보는 적지 마세요."></textarea>
+
+      <p id="feedbackError" class="error-text" role="alert"></p>
+      <div class="actions">
+        <button id="backToItems" type="button" class="secondary">문항으로 돌아가기</button>
+        <button id="reviewSurvey" type="button" class="primary">제출 전 확인</button>
+      </div>
+    </section>
+
+    <section id="reviewPanel" class="card" hidden>
+      <h2>PI 수동 테스트 제출 전 확인</h2>
+      <p>
+        12문항과 피드백이 모두 입력되었습니다. 실제 개인정보가 없는 합성
+        테스트인지 확인해 주세요. 제출 후에는 수정할 수 없습니다.
+      </p>
+      <dl class="summary">
+        <div><dt>테스트 코드</dt><dd id="reviewRater"></dd></div>
+        <div><dt>완료 문항</dt><dd id="reviewCount"></dd></div>
+        <div><dt>Instrument</dt><dd id="reviewInstrument" class="mono"></dd></div>
+      </dl>
+      <p id="submitError" class="error-text" role="alert"></p>
+      <div class="actions">
+        <button id="editFeedback" type="button" class="secondary">수정</button>
+        <button id="submitSurvey" type="button" class="primary">합성 테스트 최종 제출</button>
+      </div>
+      <div id="fallbackArea" class="fallback" hidden>
+        <p>
+          제출이 실패하면 개인정보가 포함되지 않은 합성 응답 파일만 저장할
+          수 있습니다. ID와 비밀번호는 파일에 포함되지 않습니다.
+        </p>
+        <button id="downloadResponses" type="button" class="secondary">응답 CSV 저장</button>
+        <button id="downloadFeedback" type="button" class="secondary">피드백 CSV 저장</button>
+      </div>
+    </section>
+
+    <section id="donePanel" class="card success-card" hidden>
+      <h2>PI 수동 테스트 제출이 완료되었습니다</h2>
+      <p>
+        이 자료는 분석에서 제외됩니다. 테스트 정리 절차가 끝날 때까지
+        접수번호만 별도로 기록하고 이 창을 닫아 주세요.
+      </p>
+      <p>접수번호: <strong id="receiptId" class="mono"></strong></p>
+    </section>
+
+    <noscript>
+      <section class="card">
+        이 테스트는 JavaScript가 필요합니다. 브라우저에서 JavaScript를 허용해 주세요.
+      </section>
+    </noscript>
+  </main>
+
+  <script src="site-config.js"></script>
+  <script src="instrument-hash.js"></script>
+  <script src="submission-contract.js"></script>
+  <script src="admin.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

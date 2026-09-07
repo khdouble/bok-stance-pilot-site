@@ -4,8 +4,19 @@
   var CONFIG = window.PILOT_SITE_CONFIG;
   var CONTRACT = window.PILOT_SUBMISSION_CONTRACT;
   var EXPECTED_INSTRUMENT_SHA = window.PILOT_INSTRUMENT_SHA256;
+  var ADMIN_MODE =
+    document.documentElement.getAttribute("data-pilot-mode") === "admin";
+  var ADMIN_BRIDGE = ADMIN_MODE ? window.PILOT_ADMIN_BRIDGE : null;
+  var ADMIN_LIFECYCLE =
+    ADMIN_MODE &&
+    ADMIN_BRIDGE &&
+    typeof ADMIN_BRIDGE.createSessionLifecycle === "function"
+      ? ADMIN_BRIDGE.createSessionLifecycle()
+      : null;
   var instrument = null;
   var inviteToken = "";
+  var adminCredentials = null;
+  var adminMemoryDraft = null;
   var assignmentCode = "";
   var identity = { name: "", phone: "" };
   var state = null;
@@ -53,6 +64,7 @@
       window.location.hostname === "127.0.0.1" ||
       window.location.hostname === "localhost";
     return (
+      !ADMIN_MODE &&
       hostAllowed &&
       new URLSearchParams(window.location.search).get("preview") === "1"
     );
@@ -238,12 +250,74 @@
     return "";
   }
 
+  function clearAdminUrlState() {
+    if (!ADMIN_MODE) {
+      return;
+    }
+    window.history.replaceState(null, document.title, window.location.pathname);
+  }
+
+  function clearAdminLoginFields() {
+    if (!ADMIN_MODE) {
+      return;
+    }
+    byId("adminId").value = "";
+    byId("adminPassword").value = "";
+  }
+
+  function clearAccessCredentials() {
+    inviteToken = "";
+    adminCredentials = null;
+    clearAdminLoginFields();
+  }
+
+  function assertAdminApiPinned() {
+    if (
+      ADMIN_MODE &&
+      (!ADMIN_BRIDGE || !ADMIN_BRIDGE.configIsPinned(CONFIG))
+    ) {
+      throw new Error("admin configuration unavailable");
+    }
+  }
+
+  function adminEpochIsCurrent(epoch) {
+    return Boolean(
+      ADMIN_MODE &&
+      ADMIN_LIFECYCLE &&
+      ADMIN_LIFECYCLE.isCurrent(epoch)
+    );
+  }
+
+  function adminContinuationIsCurrent(epoch) {
+    return !ADMIN_MODE || adminEpochIsCurrent(epoch);
+  }
+
+  function assertAdminContinuation(epoch) {
+    if (!adminContinuationIsCurrent(epoch)) {
+      throw new Error("admin session unavailable");
+    }
+  }
+
+  function invalidateAdminSession() {
+    if (ADMIN_MODE && ADMIN_LIFECYCLE) {
+      ADMIN_LIFECYCLE.invalidate();
+    }
+  }
+
   function validInviteToken(token) {
     return /^[A-Za-z0-9_-]{43}$/.test(token);
   }
 
-  async function apiRequest(body) {
+  async function apiRequest(body, adminEpoch) {
+    // Recheck immediately before every credential-bearing admin POST. The
+    // participant path is unchanged because this guard is admin-mode only.
+    assertAdminApiPinned();
+    assertAdminContinuation(adminEpoch);
     var controller = new AbortController();
+    var releaseAdminController = function () {};
+    if (ADMIN_MODE) {
+      releaseAdminController = ADMIN_LIFECYCLE.track(adminEpoch, controller);
+    }
     var timer = window.setTimeout(function () {
       controller.abort();
     }, CONFIG.requestTimeoutMs);
@@ -259,10 +333,13 @@
         body: JSON.stringify(body),
         signal: controller.signal
       });
+      assertAdminContinuation(adminEpoch);
       var result = {};
       try {
         result = await response.json();
+        assertAdminContinuation(adminEpoch);
       } catch (error) {
+        assertAdminContinuation(adminEpoch);
         result = {};
       }
       if (!response.ok || result.ok === false) {
@@ -279,6 +356,7 @@
       return result;
     } finally {
       window.clearTimeout(timer);
+      releaseAdminController();
     }
   }
 
@@ -325,6 +403,19 @@
     });
   }
 
+  async function verifyAdmin(credentials, adminEpoch) {
+    if (!ADMIN_BRIDGE || !ADMIN_BRIDGE.configIsPinned(CONFIG)) {
+      throw new Error("admin configuration unavailable");
+    }
+    return apiRequest(
+      ADMIN_BRIDGE.makeLoadRequest(
+        credentials,
+        instrument.instrument_sha256
+      ),
+      adminEpoch
+    );
+  }
+
   function storageKey() {
     return (
       "bok_stance_hosted_pilot_" +
@@ -335,6 +426,10 @@
   }
 
   function purgeExpiredDrafts() {
+    if (ADMIN_MODE) {
+      adminMemoryDraft = null;
+      return;
+    }
     var prefix = "bok_stance_hosted_pilot_";
     try {
       for (var index = window.localStorage.length - 1; index >= 0; index -= 1) {
@@ -430,7 +525,9 @@
 
   function restoreState() {
     try {
-      var raw = window.localStorage.getItem(storageKey());
+      var raw = ADMIN_MODE
+        ? adminMemoryDraft
+        : window.localStorage.getItem(storageKey());
       if (!raw) {
         return freshState();
       }
@@ -442,12 +539,12 @@
         !Number.isFinite(Date.parse(stored.saved_at)) ||
         Date.now() - Date.parse(stored.saved_at) > DRAFT_TTL_MS
       ) {
-        window.localStorage.removeItem(storageKey());
+        removeDraft();
         return freshState();
       }
       var candidate = stored.state;
       if (!stateShapeValid(candidate)) {
-        window.localStorage.removeItem(storageKey());
+        removeDraft();
         return freshState();
       }
       candidate.finalized_submission = candidate.finalized_submission || null;
@@ -462,10 +559,12 @@
       return;
     }
     try {
-      window.localStorage.setItem(
-        storageKey(),
-        JSON.stringify({ saved_at: nowIso(), state: state })
-      );
+      var serialized = JSON.stringify({ saved_at: nowIso(), state: state });
+      if (ADMIN_MODE) {
+        adminMemoryDraft = serialized;
+      } else {
+        window.localStorage.setItem(storageKey(), serialized);
+      }
       byId("clearDraft").hidden = false;
     } catch (error) {
       setStatus(
@@ -473,6 +572,14 @@
         "error"
       );
     }
+  }
+
+  function removeDraft() {
+    if (ADMIN_MODE) {
+      adminMemoryDraft = null;
+      return;
+    }
+    window.localStorage.removeItem(storageKey());
   }
 
   function currentItem() {
@@ -697,10 +804,12 @@
     );
   }
 
-  async function finalizedSubmissionPayload() {
+  async function finalizedSubmissionPayload(adminEpoch) {
+    assertAdminContinuation(adminEpoch);
     if (state.finalized_submission) {
       var existing = state.finalized_submission;
       var recalculated = await CONTRACT.finalizeDigest(existing.basis);
+      assertAdminContinuation(adminEpoch);
       if (
         recalculated.payload_sha256 === existing.payload_sha256 &&
         recalculated.basis.instrument_sha256 === instrument.instrument_sha256
@@ -744,6 +853,7 @@
       }
     };
     var finalized = await CONTRACT.finalizeDigest(rawBasis);
+    assertAdminContinuation(adminEpoch);
     state.finalized_submission = finalized;
     saveState();
     return finalized;
@@ -756,7 +866,59 @@
     byId("consentAccepted").checked = false;
   }
 
+  function clearAdminSessionState() {
+    if (!ADMIN_MODE) {
+      return;
+    }
+    stopActiveTimer();
+    activeStartedAt = null;
+    activeAssignmentId = null;
+    adminMemoryDraft = null;
+    clearAccessCredentials();
+    clearPrivateInputs();
+    state = null;
+    assignmentCode = "";
+    submitFailures = 0;
+    document.querySelectorAll('input[name="stance"]').forEach(function (node) {
+      node.checked = false;
+    });
+    [
+      "confidence",
+      "reasonCode",
+      "reasonNote",
+      "fatigue",
+      "zeroVs99",
+      "changeVsStance",
+      "uiError"
+    ].forEach(function (id) {
+      byId(id).value = "";
+    });
+    [
+      "itemError",
+      "feedbackError",
+      "submitError",
+      "receiptId",
+      "reviewRater",
+      "reviewCount",
+      "reviewInstrument",
+      "sentenceText"
+    ].forEach(function (id) {
+      byId(id).textContent = "";
+    });
+    byId("reasonNote").disabled = true;
+    byId("progressBar").style.width = "0%";
+    byId("clearDraft").hidden = true;
+    byId("fallbackArea").hidden = true;
+    byId("submitSurvey").disabled = false;
+    byId("editFeedback").disabled = false;
+  }
+
   async function submitSurvey() {
+    var adminEpoch =
+      ADMIN_MODE && ADMIN_LIFECYCLE ? ADMIN_LIFECYCLE.capture() : null;
+    if (!adminContinuationIsCurrent(adminEpoch)) {
+      return;
+    }
     var button = byId("submitSurvey");
     if (researchTextContainsIdentity()) {
       byId("submitError").textContent =
@@ -769,10 +931,11 @@
     byId("submitError").textContent = "";
     setStatus("암호화된 연결로 제출하고 있습니다.", "info");
     try {
-      var finalized = await finalizedSubmissionPayload();
-      var body = {
-        action: "submit",
-        invite_token: inviteToken,
+      var finalized = await finalizedSubmissionPayload(adminEpoch);
+      if (!adminContinuationIsCurrent(adminEpoch)) {
+        return;
+      }
+      var submission = {
         instrument_sha256: instrument.instrument_sha256,
         idempotency_key: state.idempotency_key,
         consent: finalized.basis.consent,
@@ -785,6 +948,15 @@
         feedback: finalized.basis.feedback,
         payload_sha256: finalized.payload_sha256
       };
+      var body = ADMIN_MODE
+        ? ADMIN_BRIDGE.makeSubmitRequest(adminCredentials, submission)
+        : Object.assign(
+            {
+              action: "submit",
+              invite_token: inviteToken
+            },
+            submission
+          );
       var result;
       if (isLocalPreview()) {
         result = {
@@ -792,24 +964,46 @@
           receipt: { submission_id: "LOCAL_PREVIEW_NOT_SUBMITTED" }
         };
       } else {
-        result = await apiRequest(body);
+        result = await apiRequest(body, adminEpoch);
       }
-      window.localStorage.removeItem(storageKey());
+      if (!adminContinuationIsCurrent(adminEpoch)) {
+        return;
+      }
+      removeDraft();
       clearPrivateInputs();
+      clearAccessCredentials();
       byId("receiptId").textContent = result.receipt
         ? result.receipt.submission_id
         : result.receipt_id || "RECEIVED";
       setStatus("제출이 완료되었습니다.", "success");
       showOnly("donePanel");
     } catch (error) {
+      if (!adminContinuationIsCurrent(adminEpoch)) {
+        return;
+      }
       submitFailures += 1;
-      byId("submitError").textContent =
-        "제출하지 못했습니다(" +
-        (error.code || "NETWORK_ERROR") +
-        "). 같은 버튼을 누르면 완전히 동일한 내용으로 재시도합니다.";
+      var changedAdminRetry =
+        ADMIN_MODE &&
+        error &&
+        error.status === 409 &&
+        error.code === "ADMIN_CREDENTIAL_ALREADY_USED";
+      byId("submitError").textContent = changedAdminRetry
+        ? "이 PI 테스트 자격으로 다른 제출이 이미 완료되어 다시 제출할 수 없습니다."
+        : ADMIN_MODE
+        ? "PI 수동 테스트 제출에 실패했습니다. 같은 버튼을 누르면 완전히 동일한 내용으로 재시도합니다."
+        : "제출하지 못했습니다(" +
+          (error.code || "NETWORK_ERROR") +
+          "). 같은 버튼을 누르면 완전히 동일한 내용으로 재시도합니다.";
       byId("fallbackArea").hidden = submitFailures < 1;
-      setStatus("응답은 이 브라우저에 임시 보관되어 있습니다.", "error");
-      button.disabled = false;
+      setStatus(
+        changedAdminRetry
+          ? "PI 수동 테스트 자격이 이미 사용되었습니다."
+          : ADMIN_MODE
+          ? "응답은 현재 PI 테스트 세션의 메모리에만 남아 있습니다."
+          : "응답은 이 브라우저에 임시 보관되어 있습니다.",
+        "error"
+      );
+      button.disabled = changedAdminRetry;
     }
   }
 
@@ -865,9 +1059,13 @@
         started_at: answer.started_at,
         finished_at: answer.finished_at,
         response_status: "COMPLETED",
-        dataset_role: instrument.dataset_role,
+        dataset_role: ADMIN_MODE
+          ? "synthetic_pi_manual_test"
+          : instrument.dataset_role,
         excluded_from_analysis: "true",
-        analysis_exclusion_reason: instrument.analysis_exclusion_reason,
+        analysis_exclusion_reason: ADMIN_MODE
+          ? "pi_manual_test_never_analysis"
+          : instrument.analysis_exclusion_reason,
         active_duration_seconds: Math.floor(
           Math.max(0, Number(answer.active_duration_seconds))
         ),
@@ -879,6 +1077,13 @@
 
   function initializeEvents() {
     byId("verifyInvite").addEventListener("click", async function () {
+      if (ADMIN_MODE) {
+        var adminId = byId("adminId").value.trim();
+        var adminPassword = byId("adminPassword").value;
+        clearAdminLoginFields();
+        await handleAdminLogin(adminId, adminPassword);
+        return;
+      }
       var token = byId("inviteCode").value.trim();
       await handleInvite(token);
       byId("inviteCode").value = "";
@@ -912,7 +1117,9 @@
         renderReview();
       } else {
         setStatus(
-          "응답은 이 기기에서 7일 동안만 복원 대상으로 임시저장됩니다.",
+          ADMIN_MODE
+            ? "응답과 시간 기록은 현재 PI 테스트 세션의 메모리에만 유지됩니다."
+            : "응답은 이 기기에서 7일 동안만 복원 대상으로 임시저장됩니다.",
           "info"
         );
         renderItem();
@@ -985,20 +1192,27 @@
     byId("clearDraft").addEventListener("click", function () {
       if (
         !window.confirm(
-          "이 기기에 임시저장된 응답을 삭제하고 처음부터 다시 시작할까요?"
+          ADMIN_MODE
+            ? "현재 PI 테스트 세션의 응답을 삭제하고 처음부터 다시 시작할까요?"
+            : "이 기기에 임시저장된 응답을 삭제하고 처음부터 다시 시작할까요?"
         )
       ) {
         return;
       }
       stopActiveTimer();
       if (state) {
-        window.localStorage.removeItem(storageKey());
+        removeDraft();
       }
       state = null;
       submitFailures = 0;
       clearPrivateInputs();
       byId("clearDraft").hidden = true;
-      setStatus("이 기기의 임시저장 응답을 삭제했습니다.", "success");
+      setStatus(
+        ADMIN_MODE
+          ? "이 PI 테스트 세션의 임시 응답을 삭제했습니다."
+          : "이 기기의 임시저장 응답을 삭제했습니다.",
+        "success"
+      );
       showOnly("identityPanel");
     });
 
@@ -1072,7 +1286,23 @@
         startActiveTimer();
       }
     });
-    window.addEventListener("pagehide", stopActiveTimer);
+    window.addEventListener("pagehide", function () {
+      if (ADMIN_MODE) {
+        invalidateAdminSession();
+        clearAdminSessionState();
+        showOnly("invitePanel");
+      } else {
+        stopActiveTimer();
+      }
+    });
+    window.addEventListener("pageshow", function (event) {
+      if (ADMIN_MODE && event.persisted) {
+        invalidateAdminSession();
+        clearAdminSessionState();
+        setStatus(byId("invitePanel").querySelector("h2").textContent, "info");
+        showOnly("invitePanel");
+      }
+    });
     window.setInterval(function () {
       if (activeStartedAt !== null) {
         stopActiveTimer();
@@ -1104,6 +1334,48 @@
         "초대 링크를 확인할 수 없습니다. 연구책임자에게 문의해 주세요.",
         "error"
       );
+      showOnly("invitePanel");
+    }
+  }
+
+  async function handleAdminLogin(adminId, adminPassword) {
+    var adminEpoch =
+      ADMIN_LIFECYCLE ? ADMIN_LIFECYCLE.capture() : null;
+    if (!adminEpochIsCurrent(adminEpoch)) {
+      return;
+    }
+    setStatus("PI 수동 테스트 자격을 확인하고 있습니다.", "info");
+    try {
+      var credentials = ADMIN_BRIDGE.validateCredentials(
+        adminId,
+        adminPassword
+      );
+      var result = await verifyAdmin(credentials, adminEpoch);
+      if (!adminEpochIsCurrent(adminEpoch)) {
+        return;
+      }
+      var code = result.assignment_code || result.pilot_rater_id;
+      var localItems = assignmentFor(code);
+      if (
+        code !== "PILOT_R01" ||
+        !sameServerItems(result.items, localItems)
+      ) {
+        throw new Error("server assignment mismatch");
+      }
+      adminCredentials = credentials;
+      assignmentCode = code;
+      setStatus(
+        "PI 수동 테스트 자격이 확인되었습니다. 합성 테스트 식별정보만 입력해 주세요.",
+        "success"
+      );
+      showOnly("identityPanel");
+    } catch (error) {
+      if (!adminEpochIsCurrent(adminEpoch)) {
+        return;
+      }
+      clearAccessCredentials();
+      assignmentCode = "";
+      setStatus("PI 수동 테스트 자격을 확인할 수 없습니다.", "error");
       showOnly("invitePanel");
     }
   }
@@ -1141,7 +1413,12 @@
   async function bootstrap() {
     initializeEvents();
     purgeExpiredDrafts();
-    var initialInviteToken = extractInviteFromFragment();
+    var initialInviteToken = "";
+    if (ADMIN_MODE) {
+      clearAdminUrlState();
+    } else {
+      initialInviteToken = extractInviteFromFragment();
+    }
     try {
       instrument = await loadInstrument();
     } catch (error) {
@@ -1149,6 +1426,16 @@
       return;
     }
     renderStanceChoices();
+
+    if (ADMIN_MODE) {
+      if (!ADMIN_BRIDGE || !ADMIN_BRIDGE.configIsPinned(CONFIG)) {
+        failClosed("PI 수동 테스트 설정을 확인하지 못했습니다.");
+        return;
+      }
+      setStatus("PI 전용 수동 테스트 자격을 입력해 주세요.", "info");
+      showOnly("invitePanel");
+      return;
+    }
 
     if (!CONFIG.fieldingEnabled && !isLocalPreview()) {
       failClosed(

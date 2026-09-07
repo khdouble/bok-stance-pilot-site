@@ -18,19 +18,26 @@ This separation prevents an analysis export from accidentally containing direct 
 
 ## Fixed release inputs
 
-- Hosted instrument version: `v260903-pilot-hosted-1`
+- Immutable applied baseline: `v260903-pilot-hosted-1` / `4a07da2785bb2228787f2dd4e57339bd5c132111d693681a12cb62baf64978e7`
+- Local staged append-only release candidate: `v260903-pilot-hosted-2`
 - Offline source instrument: `b594a196eb7be720e57d974f4b5c6e4437b697e6ae20f01013e830af35707a51`
 - Hosted instrument SHA-256: the canonical `instrument_sha256` in `docs/instrument.json` (read it at execution time; do not copy it into export code)
 - Allowed browser origin: exactly `https://khdouble.github.io`
 - Items per invitation: exactly 12
 
-`tools/render_instrument_seed.py` generated `migrations/202609030002_seed_pilot_instrument.sql` directly from `docs/instrument.json`: 1 instrument, 12 items, 5 assignment sets, and 60 ordered assignment rows. The renderer recomputes the declared canonical hash and fails on version/count/schema drift, placeholders, unsafe output paths, or overwrite. The database active row, `PILOT_INSTRUMENT_SHA256`, and the hash sent by the frontend must all be identical. Instrument activation does not open fielding: the seed leaves `fielding_open=false`.
+`tools/render_instrument_seed.py` generated `migrations/202609030002_seed_pilot_instrument.sql` for the immutable v1 baseline: 1 instrument, 12 items, 5 assignment sets, and 60 ordered assignment rows. Migration 002 has raw-byte SHA-256 `c0a8116c0bc8551a4ac0fb77bf776385bc002ad6f26d8b575e83adbac353ebd2`; never edit or regenerate it from the moving `docs/instrument.json`.
+
+The v1 identity and research-payload commitment are frozen in `instrument_history/v260903-pilot-hosted-1.instrument.json`. `tools/render_instrument_transition.py` consumes that commitment and the current v2 `docs/instrument.json`, verifies the immutable 002 bytes and unchanged 12/5/60 research payload, and renders migration 005 once without overwrite. Because the v1 and v2 research basis is identical, the renderer also materializes the expected v1 item text, assignment-set, and code/position/item/assignment mappings as literal preconditions. The instrument contains an exact 11-key `release_source_hashes` map. Migration 005 is deliberately excluded from that map to avoid a circular hash; `deployment-manifest.json` binds the exact raw 005 SHA-256 separately as `deployment_source_hashes.database_instrument_transition`.
+
+Migration 005 first locks the full pilot relation set and validates exact v1 metadata plus the complete v1 research rows with bidirectional `EXCEPT`; shape-preserving sentence or assignment-mapping drift is therefore fatal before any v2 row is inserted. It then inserts v2 inactive and closed, validates its exact 12 items, 5 assignment sets, and 60 assignments, and atomically deactivates v1 and activates v2. It also requires the exact migration-004 column/check/index contract, v2 absence, and globally empty invite, identity, submission, and response tables. It rechecks the sole-active closed v2 state and all-zero mutable tables before commit. Instrument activation never opens fielding.
 
 Migration files are append-only after they have been applied:
 
 - `202609030001_pilot_backend.sql` creates the private and research data boundary.
 - `202609030002_seed_pilot_instrument.sql` seeds the immutable hosted instrument and leaves fielding closed.
 - `202609030003_pilot_withdrawal_audit.sql` adds the private, forced-RLS, grant-free non-identifying withdrawal completion log.
+- `202609030004_pi_manual_test_credentials.sql` adds purpose-bound, digest-only PI manual-test credentials and the distinct synthetic-analysis exclusion. It intentionally refuses a nonempty invitation table and refuses replay against a schema where either new column already exists.
+- `202609030005_activate_hosted_instrument_v2.sql` is the one-time append-only v1-to-v2 active-instrument transition. It is renderer-owned and must match the current v2 artifact byte for byte.
 
 ## API contract
 
@@ -114,18 +121,24 @@ A repeated submit is successful only when the invitation, UUID v4 idempotency ke
 
 ## Deployment sequence
 
-1. Link the CLI to project ref `mebisrsvasrzwkmsodsw`, run the complete test suite, and confirm `docs/instrument.json` still matches migration 002.
-2. Run `supabase db push --dry-run`, review the ordered migration list, apply every pending migration including migration 003, and use `supabase migration list` to confirm local/remote history parity. Never modify a migration that is already remote.
-3. Generate and validate the exactly seven custom function secrets in an external, access-controlled, non-synced directory. Upload that file without displaying or copying its values.
-4. Deploy `pilot-api`, confirm the deployed function is listed, and run a controlled malformed-request probe. A controlled `400` proves the route and runtime configuration loaded; `404` or `500` is a deployment blocker. Only the disposable E2E proves database read/write behavior.
-5. Manually disable the hosted project's Data API in the Supabase Dashboard and record the check. `config.toml`, RLS, and revokes are necessary defenses but do not prove the hosted Dashboard switch is off.
-6. Provision exactly one short-lived `disposable-e2e` invitation, apply its digest-only seed, temporarily open only the E2E database gate, and exercise the real Pages assets and deployed function through `tools/run_remote_e2e.py`. The browser intercepts all requests before sending, fails every destination outside the exact allowlist, and fulfills only the exact `site-config.js` request with the two-field in-memory override. Do not publish or fabricate `remoteE2eVerifiedAt` before success.
-7. Treat a successful browser run as pending, not complete: the harness writes `E2E_PASSED_CLEANUP_PENDING` and deliberately exits `3`. The receipt's `tested_config_timestamp` is exactly the UTC second injected into the tested in-memory config. In a `finally` path after a valid disposable invite is loaded, the harness attempts to close the gate and revoke that invite on both success and failure without replacing the original failure. If automatic close reports a warning, run `close-e2e` manually at once.
-8. Deliberately remove the disposable test records with the individual-withdrawal tool: preview the invite-scoped deletion, use its exact generated confirmation, and verify that identity, submission, responses, and the disposable invitation are absent. Automatic close/revoke is not database-row cleanup.
-9. Run `tools/finalize_remote_e2e.py` with the pending receipt and original private provision file. It re-attests the same staged assets and exact tested timestamp, checks the gate and target rows read-only, and only then writes the non-identifying `E2E_VERIFIED_CLEAN` receipt. Its `fielding_authorized` remains `false`.
-10. Copy the clean receipt's unchanged `tested_config_timestamp` to `remoteE2eVerifiedAt`, rebuild and validate the live static release and manifest, publish it, and verify the deployed operational file hashes.
-11. Provision exactly five `production` invitations for `PILOT_R01` through `PILOT_R05`, apply their digest-only seed, and inspect gate status.
-12. Open production with `manage_fielding_gate.py` only after its local live-release check and all server-side eligibility checks pass. Send each raw invitation URL separately. The database gate is the final switch.
+The mandatory compatibility order for this release is **migration 004 -> migration 005 -> Edge Function -> GitHub Pages**. Never expose the PI page before its server contract is deployed, and never deploy the new Edge code before both its migration-004 schema and active v2 instrument exist.
+
+1. Link the CLI to project ref `mebisrsvasrzwkmsodsw`, run the complete test suite, and require zero release-validator failures. Confirm migration 002 still has its pinned raw hash, migration 005 exactly equals the deterministic renderer output, the v2 instrument has the exact 11-source map, and the deployment manifest binds 005 separately.
+2. Before migration 004, verify migration history is exactly 001--003, the sole instrument is the exact v1 hash/version with `is_active=true` and `fielding_open=false`, its exact item text and assignment mapping match the frozen research basis (not merely the 12/5/60 counts), v2 is absent, and sanitized global counts are exactly `invite_count=0`, `identity_count=0`, `submission_count=0`, and `response_count=0`. Any mismatch is a blocker.
+3. Run `supabase db push --dry-run` and require exactly 004 followed by 005, with no other migration. Apply once, then confirm local/remote 001--005 parity. Repeat a read-only status check: v1 must be inactive/closed, v2 must be the sole active instrument and closed, both instrument shapes must be 12/5/60, and all four global mutable counts must remain zero.
+4. Generate and validate the exactly seven custom function secrets in an external, access-controlled, non-synced directory. Upload that file without displaying or copying its values.
+5. Deploy `pilot-api`, confirm the deployed function version, and run only the sanitized CORS/malformed-request probes. A controlled `400` proves routing; `404` or `500` is a deployment blocker. Before any credential is created, an `admin_load` request with a syntactically valid nonexistent credential must return the generic `403 ADMIN_AUTH_FAILED` while the gate remains closed.
+6. Publish GitHub Pages last, still with `fieldingEnabled=false` and `remoteE2eVerifiedAt=PENDING_PI`. Verify the deployed manifest, static bytes, exact 11-source map, and separately bound 005 hash. Publishing `admin.html` does not open fielding and grants no administration capability.
+7. Manually disable the hosted project's Data API in the Supabase Dashboard and record the check. `config.toml`, RLS, and revokes are necessary defenses but do not prove the hosted Dashboard switch is off.
+8. Provision exactly one short-lived `disposable-e2e` invitation, apply its digest-only seed, temporarily open only the E2E database gate, and exercise the real Pages assets and deployed function through `tools/run_remote_e2e.py`. The browser intercepts all requests before sending, fails every destination outside the exact allowlist, and fulfills only the exact `site-config.js` request with the two-field in-memory override. Do not publish or fabricate `remoteE2eVerifiedAt` before success.
+9. Treat a successful browser run as pending, not complete: the harness writes `E2E_PASSED_CLEANUP_PENDING` and deliberately exits `3`. The receipt's `tested_config_timestamp` is exactly the UTC second injected into the tested in-memory config. In a `finally` path after a valid disposable invite is loaded, the harness attempts to close the gate and revoke that invite on both success and failure without replacing the original failure. If automatic close reports a warning, run `close-e2e` manually at once.
+10. Deliberately remove the disposable test records with the individual-withdrawal tool: preview the invite-scoped deletion, use its exact generated confirmation, and verify that identity, submission, responses, and the disposable invitation are absent. Automatic close/revoke is not database-row cleanup.
+11. Run `tools/finalize_remote_e2e.py` with the pending receipt and original private provision file. It re-attests the same staged assets and exact tested timestamp, checks the gate and target rows read-only, and only then writes the non-identifying `E2E_VERIFIED_CLEAN` receipt. Its `fielding_authorized` remains `false`.
+12. Copy the clean receipt's unchanged `tested_config_timestamp` to `remoteE2eVerifiedAt`, rebuild and validate the live static release and manifest, publish it, and verify the deployed operational file hashes.
+13. Provision exactly five `production` invitations for `PILOT_R01` through `PILOT_R05`, apply their digest-only seed, and inspect gate status.
+14. Open production with `manage_fielding_gate.py` only after its local live-release check and all server-side eligibility checks pass. Send each raw invitation URL separately. The database gate is the final switch.
+
+Do not retry either migration after an ambiguous `db push`. First inspect migration history, the exact migration-004 catalog contract, both instrument rows and shapes, the closed gate, and the four global mutable counts. Applied migrations 002, 004, and 005 remain append-only. If 005 committed but a later deployment fails, keep HOLD; an old Edge or Pages release is expected to reject the new active hash. Repair and redeploy the matching v2 release. If a reviewed return to v1 is unavoidable, implement a new forward-fix migration 006 that requires v2 active/closed and globally all-zero mutable tables, then atomically switches v2 off and v1 on. Never edit, delete, rerun, or down-migrate 002/004/005.
 
 ## Generate and upload exactly seven custom secrets
 
@@ -225,6 +238,43 @@ Tokens use URL fragments (`#invite=...`), so GitHub Pages and HTTP referrer
 headers do not receive them. The frontend removes the fragment immediately and
 keeps the raw token only in JavaScript memory. A reload therefore requires the
 original invitation link.
+
+## PI manual-test credential (synthetic, no admin privilege)
+
+`docs/admin.html` is a dedicated usability-test client, not an administration console. Its `admin_load` and `admin_submit` requests carry a generated ID and 256-bit password only in an exact POST JSON body. The browser holds them only in memory, clears the login controls after load, and uses no URL credential, cookie, session token, log, screenshot, or local storage. The server accepts this purpose only while the active instrument has `fielding_open=false`; participant invitations work only while it is true. Both values are stored in the database only as separately domain-prefixed HMAC digests. Every resulting submission is forced to `synthetic_pi_manual_test`, `excluded_from_analysis=true`, and `pi_manual_test_never_analysis`.
+
+Create at most one credential only after migration 004 and the matching Edge Function are deployed, Pages remains on HOLD, and the closed/all-zero precheck above passes. Load `INVITE_HMAC_SECRET_B64` only into the current process and generate the files below the external private root:
+
+```powershell
+$piExpiry = [DateTimeOffset]::UtcNow.AddHours(2).ToString("yyyy-MM-ddTHH:mm:ssZ")
+python -X utf8 supabase/admin/provision_invites.py `
+  --private-root $pilotPrivate `
+  --output (Join-Path $pilotPrivate "pi-manual-test") `
+  --instrument-sha256 $instrumentHash `
+  --expires-at $piExpiry `
+  --mode pi-manual-test `
+  --assignment-code PILOT_R01 `
+  --seed-via linked-cli
+```
+
+Review and type the generated exact seed confirmation. The linked backend performs one serializable, digest-only mutation, requires the gate to be exactly false, verifies the active version and 12-item `PILOT_R01`, requires zero other outstanding PI credential, and independently checks the committed target. If the CLI reports `DO NOT RETRY; RUN LINKED STATUS`, do not seed again: retain the protected files, inspect only sanitized target/aggregate state, and either use or delete the one confirmed row.
+
+Open the protected `pi_manual_test.private.json` locally and type its ID/password into the published `/bok-stance-pilot-site/admin.html` page. Never paste the credential into chat, email, a command, an issue, or a repository file. The credential expires within 24 hours, becomes one-time-used on the first committed submit, permits only an identical idempotent retry, and grants no database, gate, export, or site administration access.
+
+Whether the PI submits or abandons the test, remove the database row promptly. Read the invitation UUID locally from the protected credential file, then preview with the linked backend and bind the cleanup to its exact purpose:
+
+```powershell
+python -X utf8 supabase/admin/delete_withdrawn_participant.py `
+  --db-backend linked-cli `
+  --expected-purpose pi_manual_test `
+  --instrument-sha256 $instrumentHash `
+  --procedure-version withdrawal-v2026-09-03-r1 `
+  --request-received-at $requestReceivedAt `
+  --invite-id $piInviteId `
+  --dry-run
+```
+
+Re-run with the complete generated `--confirm` phrase. The same serializable transaction deletes either the unused credential alone or the linked 12-response synthetic submission, encrypted identity, and credential; verifies target absence; and writes only the non-identifying withdrawal audit. Require `fielding_open=false` and `invite_count=0`, `identity_count=0`, `submission_count=0`, and `response_count=0` afterward. Only then dispose of the external raw credential files under the approved local retention procedure. Never open production while a PI credential or its synthetic submission remains.
 
 ## Inspect and change the fielding gate
 

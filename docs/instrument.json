@@ -1,7 +1,7 @@
 {
-  "instrument_sha256": "4a07da2785bb2228787f2dd4e57339bd5c132111d693681a12cb62baf64978e7",
+  "instrument_sha256": "192b618e620c653d5419eb602dcff5ca3f5346896b07bb5e24485fbd81e69dad",
   "schema_version": "1.0",
-  "hosted_version": "v260903-pilot-hosted-1",
+  "hosted_version": "v260903-pilot-hosted-2",
   "source_offline_instrument_sha256": "b594a196eb7be720e57d974f4b5c6e4437b697e6ae20f01013e830af35707a51",
   "dataset_role": "synthetic_usability_pilot",
   "excluded_from_analysis": true,
@@ -488,10 +488,13 @@
     "parent_manifest": "64ba49fc40a8c009f630682817ecb7129fc01ec26935ac71f99d60c2eb504c9c"
   },
   "release_source_hashes": {
+    "database_pi_manual_test": "63debae33ba265408eddd40c10183aa133dc7546fb476bb21caa31ffdf686ba5",
     "database_schema": "ac214e9a6d08b02cad8d14d97c6a049374c610b0f7ba54a6d0e1bb09796e895d",
-    "edge_contract": "8f40b7c744647a956951a71b60ff940ce03d564c7caf1eb1a2983a2e5a297c76",
-    "edge_function": "fecb6f47dcc88dae595b3acf2207ed5d9c61374989cf2d445e77f29e8fe93cb7",
-    "public_app": "1c8a65e24b39e05e2363daa4f68b79735f7d3c4276675610ebd937a470c3e299",
+    "edge_contract": "e66c31e51a6e5c94cf0776043f34b96af3beea72b3d88203b7ef7f3f2474bb46",
+    "edge_function": "4161255b8a45ddc00e3111178b145f0785c3f7d26dc9f93b8eb2bb7c4bdae926",
+    "public_admin": "7e0d2a50f51c2a477173d8ec786d3d2ecb3b2aa92d5a5831717f9e27a6abd02a",
+    "public_admin_bridge": "3ab691295e3f177bffc9a8a1533436693ce1a31e13335adaa06fecd47c1ee7a2",
+    "public_app": "7425da9064d4a3b5d7ebd9086806db28790a4103570b6089534085275a5eb413",
     "public_contract": "5359b283c4d90bdbb9dd716c7a2be892e9f362df3949ebc8aa567da3c3043086",
     "public_index": "250a521cba58b081ef774354ede7274dade952abf9729db8d6f68fc9d0bd329d",
     "public_styles": "ea23e22cf0f2adf2e0707fa84e2e2f92efe73d231ea6ebc6d379b37813a80580",
