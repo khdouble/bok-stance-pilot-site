@@ -41,7 +41,10 @@
   function normalizeDigestBasis(raw) {
     var responses = raw.responses
       .map(function (response) {
-        return {
+        var itemQualityIncluded =
+          response.item_quality_code !== undefined ||
+          response.item_quality_note !== undefined;
+        var normalized = {
           display_position: requiredInteger(
             response.display_position,
             "response.display_position"
@@ -61,6 +64,17 @@
             "response.active_duration_seconds"
           )
         };
+        if (itemQualityIncluded) {
+          normalized.item_quality_code = normalizedText(
+            response.item_quality_code === undefined
+              ? "NONE"
+              : response.item_quality_code
+          );
+          normalized.item_quality_note = normalizedText(
+            response.item_quality_note || ""
+          );
+        }
+        return normalized;
       })
       .sort(function (left, right) {
         return left.display_position - right.display_position;

@@ -39,3 +39,11 @@ assert.equal(
 );
 
 console.log(`PASS frontend submission golden vector sha256=${expected.payload_sha256}`);
+
+const withQuality = structuredClone(fixture.raw_digest_input);
+withQuality.responses[0].item_quality_code = "TOO_OBVIOUS";
+withQuality.responses[0].item_quality_note = "";
+const qualityBasis = JSON.parse(JSON.stringify((await contract.finalizeDigest(withQuality)).basis));
+assert.equal(qualityBasis.responses[11].item_quality_code, "TOO_OBVIOUS");
+assert.equal(qualityBasis.responses[11].item_quality_note, "");
+console.log("PASS frontend item-quality digest coverage");
