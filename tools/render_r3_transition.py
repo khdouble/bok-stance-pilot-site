@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the immutable H2-to-H3 R3 transition migration from docs/instrument.json."""
+"""Render the immutable H3-to-H4 R4 transition migration from docs/instrument.json."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INPUT = ROOT / "docs" / "instrument.json"
-OUTPUT = ROOT / "supabase" / "migrations" / "202609080007_activate_r3_h3.sql"
-H2_HASH = "192b618e620c653d5419eb602dcff5ca3f5346896b07bb5e24485fbd81e69dad"
+OUTPUT = ROOT / "supabase" / "migrations" / "202609080009_activate_r4_h4.sql"
+H3_HASH = "6cb5d63b5c4a764f9800bb1dd423f99b31b04d3a34854a011f0814a6550c5d41"
 
 
 def canonical_json(value: object) -> bytes:
@@ -30,7 +30,7 @@ def main() -> int:
     calculated = hashlib.sha256(canonical_json(instrument)).hexdigest()
     if declared != calculated:
         raise SystemExit("instrument hash mismatch")
-    if instrument.get("hosted_version") != "v260908-r3-preview-1":
+    if instrument.get("hosted_version") != "v260908-r4-public-1":
         raise SystemExit("unexpected R3 hosted version")
     if instrument.get("dataset_role") != "r3_content_response_pilot":
         raise SystemExit("unexpected R3 dataset role")
@@ -82,24 +82,24 @@ begin
     raise exception 'H3 activation requires every fielding gate to be closed';
   end if;
   if (select count(*) from research.pilot_instruments where is_active) <> 1
-     or not exists (select 1 from research.pilot_instruments where instrument_sha256 = {sql(H2_HASH)} and is_active) then
+     or not exists (select 1 from research.pilot_instruments where instrument_sha256 = {sql(H3_HASH)} and is_active) then
     raise exception 'H3 activation requires exactly active H2 baseline';
   end if;
-  if exists (select 1 from private.pilot_invites where instrument_sha256 <> {sql(H2_HASH)})
-     or exists (select 1 from research.pilot_submissions where instrument_sha256 <> {sql(H2_HASH)})
-     or exists (select 1 from research.pilot_responses where instrument_sha256 <> {sql(H2_HASH)}) then
+  if exists (select 1 from private.pilot_invites where instrument_sha256 <> {sql(H3_HASH)})
+     or exists (select 1 from research.pilot_submissions where instrument_sha256 <> {sql(H3_HASH)})
+     or exists (select 1 from research.pilot_responses where instrument_sha256 <> {sql(H3_HASH)}) then
     raise exception 'unexpected non-H2 operational data exists';
   end if;
   if exists (
     select 1 from private.pilot_invites
-    where instrument_sha256 = {sql(H2_HASH)}
+    where instrument_sha256 = {sql(H3_HASH)}
       and (invite_purpose <> 'pi_manual_test' or used_at is null or submission_id is null)
   ) then
     raise exception 'H2 must contain only finalized PI manual-test history before H3 activation';
   end if;
   if exists (
     select 1 from research.pilot_submissions
-    where instrument_sha256 = {sql(H2_HASH)}
+    where instrument_sha256 = {sql(H3_HASH)}
       and (dataset_role <> 'synthetic_pi_manual_test' or not excluded_from_analysis
            or analysis_exclusion_reason <> 'pi_manual_test_never_analysis')
   ) then
@@ -145,7 +145,7 @@ update research.pilot_instruments
 set is_active = false,
     fielding_open = false,
     fielding_closed_at = coalesce(fielding_closed_at, now())
-where instrument_sha256 = {sql(H2_HASH)} and is_active;
+where instrument_sha256 = {sql(H3_HASH)} and is_active;
 
 update research.pilot_instruments
 set is_active = true, activated_at = now(), fielding_open = false

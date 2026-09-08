@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the R3 public instrument from its locked, key-free source file."""
+"""Build the R4 public instrument from its locked, key-free source file."""
 
 from __future__ import annotations
 
@@ -12,13 +12,13 @@ from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SOURCE_PATH = REPO_ROOT / "instrument_sources" / "r3_20260908.json"
+SOURCE_PATH = REPO_ROOT / "instrument_sources" / "r4_20260908.json"
 OUTPUT_PATH = REPO_ROOT / "docs" / "instrument.json"
 HASH_JS_PATH = REPO_ROOT / "docs" / "instrument-hash.js"
 ITEM_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 EXPECTED_ASSIGNMENTS = tuple(f"PILOT_R{number:02d}" for number in range(1, 6))
 RELEASE_SOURCE_PATHS = {
-    "r3_source": Path("instrument_sources/r3_20260908.json"),
+    "r4_source": Path("instrument_sources/r4_20260908.json"),
     "public_admin": Path("docs/admin.html"),
     "public_admin_bridge": Path("docs/admin.js"),
     "public_app": Path("docs/app.js"),
@@ -56,37 +56,37 @@ def require_text(value: Any, field: str, minimum: int = 1, maximum: int = 10000)
 def load_source(path: Path) -> dict[str, Any]:
     source = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(source, dict):
-        raise ValueError("R3 source must be an object")
+        raise ValueError("R4 source must be an object")
     required = {
         "schema_version", "hosted_version", "source_offline_instrument_sha256",
         "dataset_role", "excluded_from_analysis", "analysis_exclusion_reason",
         "source_provenance", "tutorial", "core_items", "assignment_orders",
     }
     if set(source) != required:
-        raise ValueError("R3 source field set changed")
+        raise ValueError("R4 source field set changed")
     if source["schema_version"] != "1.0":
-        raise ValueError("R3 source schema version changed")
-    if not re.fullmatch(r"v\d{6}-r3-preview-\d+", str(source["hosted_version"])):
-        raise ValueError("R3 hosted version has an invalid format")
+        raise ValueError("R4 source schema version changed")
+    if not re.fullmatch(r"v\d{6}-r4-public-\d+", str(source["hosted_version"])):
+        raise ValueError("R4 hosted version has an invalid format")
     if not re.fullmatch(r"[0-9a-f]{64}", str(source["source_offline_instrument_sha256"])):
-        raise ValueError("R3 source hash must be a SHA-256 digest")
+        raise ValueError("R4 source hash must be a SHA-256 digest")
     if (
         source["dataset_role"] != "r3_content_response_pilot"
         or source["excluded_from_analysis"] is not True
         or source["analysis_exclusion_reason"] != "r3_repilot_never_analysis"
     ):
-        raise ValueError("R3 pilot-only analysis boundary changed")
+        raise ValueError("R4 pilot-only analysis boundary changed")
     provenance = source["source_provenance"]
     if not isinstance(provenance, dict) or set(provenance) != {
         "canonical_corpus", "canonical_corpus_sha256", "selection_memo", "selection_rule"
     }:
-        raise ValueError("R3 provenance field set changed")
+        raise ValueError("R4 provenance field set changed")
     if provenance["canonical_corpus_sha256"] != source["source_offline_instrument_sha256"]:
         raise ValueError("R3 canonical corpus hash is not locked consistently")
 
     core_rows = source["core_items"]
     if not isinstance(core_rows, list) or len(core_rows) != 12:
-        raise ValueError("R3 must contain exactly 12 core items")
+        raise ValueError("R4 must contain exactly 12 core items")
     core: dict[str, dict[str, str]] = {}
     for index, row in enumerate(core_rows):
         if not isinstance(row, dict) or set(row) != {"pilot_item_id", "statement_date", "governor", "sentence_text"}:
@@ -106,7 +106,7 @@ def load_source(path: Path) -> dict[str, Any]:
         raise ValueError("R3 tutorial field set changed")
     tutorial_items = tutorial["items"]
     if not isinstance(tutorial_items, list) or len(tutorial_items) != 6:
-        raise ValueError("R3 must contain exactly six unscored tutorial items")
+        raise ValueError("R4 must contain exactly six unscored tutorial items")
     tutorial_ids: set[str] = set()
     normalized_tutorial: list[dict[str, Any]] = []
     for index, row in enumerate(tutorial_items):
@@ -138,7 +138,7 @@ def load_source(path: Path) -> dict[str, Any]:
             raise ValueError(f"{assignment_code} must order each R3 core item exactly once")
         assignments[assignment_code] = [
             {
-                "assignment_id": f"H3_{assignment_code}_{position:02d}",
+                "assignment_id": f"H4_{assignment_code}_{position:02d}",
                 "pilot_rater_id": assignment_code,
                 "display_position": position,
                 "pilot_item_id": item_id,
@@ -186,7 +186,7 @@ def build(source_path: Path, output_path: Path) -> dict[str, Any]:
         "item_quality_codes": ["NONE", "TOO_OBVIOUS", "UNNATURAL_OR_IMPOSSIBLE", "POLICY_INSTRUMENT_AMBIGUITY", "CONTEXT_REFERENCE_AMBIGUITY", "UI_PROBLEM", "OTHER"],
         "confidence_values": [1, 2, 3, 4, 5],
         "assignments": locked["assignments"],
-        "source_hashes": {"r3_source": sha256_file(source_path)},
+        "source_hashes": {"r4_source": sha256_file(source_path)},
         "release_source_hashes": {name: sha256_file(path) for name, path in sorted(release_paths.items())},
     }
     result = {"instrument_sha256": sha256_bytes(canonical_json(payload)), **payload}

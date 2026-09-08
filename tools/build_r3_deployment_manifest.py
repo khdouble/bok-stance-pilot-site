@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a staging or live deployment manifest for the locked R3 release."""
+"""Build a staging or live deployment manifest for the locked R4 release."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from build_r3_public_instrument import RELEASE_SOURCE_PATHS
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 OUTPUT = DOCS / "deployment-manifest.json"
-TRANSITION = ROOT / "supabase" / "migrations" / "202609080007_activate_r3_h3.sql"
+TRANSITION = ROOT / "supabase" / "migrations" / "202609080009_activate_r4_h4.sql"
 EXPECTED_ORIGIN = "https://khdouble.github.io"
 EXPECTED_PATH = "/bok-stance-pilot-site/"
 EXPECTED_API = "https://mebisrsvasrzwkmsodsw.supabase.co/functions/v1/pilot-api"
@@ -48,10 +48,10 @@ def load_instrument() -> dict[str, object]:
     declared = instrument.pop("instrument_sha256", "")
     if not isinstance(declared, str) or declared != digest(canonical_json(instrument)):
         raise ValueError("instrument self digest is invalid")
-    if instrument.get("hosted_version") != "v260908-r3-preview-1":
-        raise ValueError("instrument is not the expected R3 version")
+    if instrument.get("hosted_version") != "v260908-r4-public-1":
+        raise ValueError("instrument is not the expected R4 version")
     if instrument.get("dataset_role") != "r3_content_response_pilot" or instrument.get("excluded_from_analysis") is not True:
-        raise ValueError("R3 pilot-only analysis boundary changed")
+        raise ValueError("R4 pilot-only analysis boundary changed")
     hashes = instrument.get("release_source_hashes")
     expected = {name: digest((ROOT / path).read_bytes()) for name, path in RELEASE_SOURCE_PATHS.items()}
     if hashes != expected:
@@ -66,16 +66,16 @@ def build(state: str) -> dict[str, object]:
     if (quoted(config, "apiUrl"), quoted(config, "githubPagesOrigin"), quoted(config, "basePath")) != (EXPECTED_API, EXPECTED_ORIGIN, EXPECTED_PATH):
         raise ValueError("site endpoint or Pages location changed")
     if quoted(config, "hostedVersion") != instrument["hosted_version"] or quoted(config, "sourceOfflineInstrumentSha256") != instrument["source_offline_instrument_sha256"]:
-        raise ValueError("site config and R3 instrument differ")
+        raise ValueError("site config and R4 instrument differ")
     enabled = boolean(config, "fieldingEnabled")
     direct = boolean(config, "directEntryEnabled")
     if state == "staging" and (enabled or direct):
-        raise ValueError("R3 staging requires fieldingEnabled=false and directEntryEnabled=false")
+        raise ValueError("R4 staging requires fieldingEnabled=false and directEntryEnabled=false")
     if state == "live" and (not enabled or not direct):
-        raise ValueError("R3 live requires fieldingEnabled=true and directEntryEnabled=true")
+        raise ValueError("R4 live requires fieldingEnabled=true and directEntryEnabled=true")
     migration = TRANSITION.read_text(encoding="utf-8")
-    if instrument["instrument_sha256"] not in migration or "192b618e620c653d5419eb602dcff5ca3f5346896b07bb5e24485fbd81e69dad" not in migration:
-        raise ValueError("R3 transition migration is not bound to H2 and H3")
+    if instrument["instrument_sha256"] not in migration or "6cb5d63b5c4a764f9800bb1dd423f99b31b04d3a34854a011f0814a6550c5d41" not in migration:
+        raise ValueError("R4 transition migration is not bound to H3 and H4")
     payload = {
         "schema_version": "1.0",
         "deployment_state": state,
@@ -100,7 +100,7 @@ def main() -> int:
     args = parser.parse_args()
     result = build(args.state)
     OUTPUT.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
-    print(f"Built R3 deployment manifest state={args.state} sha256={result['deployment_manifest_sha256']}")
+    print(f"Built R4 deployment manifest state={args.state} sha256={result['deployment_manifest_sha256']}")
     return 0
 
 
