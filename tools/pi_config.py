@@ -19,7 +19,7 @@ REQUIRED_TEXT_FIELDS = (
     "remoteE2eVerifiedAt",
     "identityPurpose",
 )
-EXPECTED_IDENTITY_PURPOSE = "사전 지정 참여자의 응답자료 구별과 제출자료 확인"
+EXPECTED_IDENTITY_PURPOSE = "사전 지정 참가자의 응답자료 구별과 제출자료 확인"
 ALLOWED_DATA_REGIONS = {
     "ap-northeast-1",
     "ap-northeast-2",
