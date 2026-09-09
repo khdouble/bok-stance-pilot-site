@@ -1,5 +1,5 @@
 {
-  "deployment_manifest_sha256": "ad306e8b6f9d3e56bcda5990b3d36ebefe46138326064cffba4d2e86b866d60e",
+  "deployment_manifest_sha256": "13399c02b7477f98c0fc9c5b821d9eb155ff0fac447b4482c7493e17368420b2",
   "schema_version": "1.0",
   "deployment_state": "live",
   "site_url": "https://khdouble.github.io/bok-stance-pilot-site/",
@@ -8,7 +8,7 @@
   "instrument_sha256": "b18cb9a6e1cb15acac1432494de76bf6bdf406fd7c02b0e4b1f3277fd61faab7",
   "operational_file_hashes": {
     "privacy_notice": "749a3aa78b60a2978ea76196d23148978df0ff1ab702fbd37c7ae22cc4c87086",
-    "site_config": "dbe0df5dc1ab163e69098c3a383dd77e33e9fa803dd2097e41ad2379afe3ecba"
+    "site_config": "7b4e3bfdaa312ff124e07d8751ac05b4c3f65f3196b1f17276e252988becdd27"
   },
   "deployment_source_hashes": {
     "database_instrument_transition": "28202d6119fb96a92a8d9e4450651811fdacf1000a43606231e1ca28da8de0b9"
