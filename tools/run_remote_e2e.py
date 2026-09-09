@@ -1137,6 +1137,11 @@ def run_browser_flow(
             """ % (json.dumps(identity["name"], ensure_ascii=False), json.dumps(identity["phone"]))
             client.evaluate(identity_expression)
             client.wait_js(
+                "document.getElementById('tutorialPanel') && !document.getElementById('tutorialPanel').hidden",
+                timeout,
+            )
+            client.evaluate("document.getElementById('beginCore').click(); true")
+            client.wait_js(
                 "document.getElementById('surveyPanel') && !document.getElementById('surveyPanel').hidden",
                 timeout,
             )
