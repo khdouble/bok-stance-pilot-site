@@ -47,7 +47,7 @@ EXPECTED_API_URL = (
     "https://mebisrsvasrzwkmsodsw.supabase.co/functions/v1/pilot-api"
 )
 TRANSITION_MIGRATION_RELATIVE = Path(
-    "supabase/migrations/202609090011_activate_r5_h6.sql"
+    "supabase/migrations/202609090012_activate_r5_h7.sql"
 )
 EXPECTED_MANIFEST_KEYS = frozenset(
     {

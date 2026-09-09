@@ -17,6 +17,6 @@ window.PILOT_SITE_CONFIG = Object.freeze({
   ethicsReference: "not_required:연구책임자 자체판단 기록 2026-09-03; 기관 심의·승인 문서 없음",
   withdrawalProcedureVersion: "withdrawal-v2026-09-03-r1",
   remoteE2eVerifiedAt: "2026-09-08T10:56:16Z",
-  identityPurpose: "사전 지정 참가자의 응답자료 구별과 제출자료 확인",
+  identityPurpose: "설문 참여자의 응답자료 구별과 제출자료 확인",
   requestTimeoutMs: 20000
 });

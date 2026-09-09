@@ -15,7 +15,7 @@ from build_r5_public_instrument import RELEASE_SOURCE_PATHS
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 OUTPUT = DOCS / "deployment-manifest.json"
-TRANSITION = ROOT / "supabase" / "migrations" / "202609090011_activate_r5_h6.sql"
+TRANSITION = ROOT / "supabase" / "migrations" / "202609090012_activate_r5_h7.sql"
 EXPECTED_ORIGIN = "https://khdouble.github.io"
 EXPECTED_PATH = "/bok-stance-pilot-site/"
 EXPECTED_API = "https://mebisrsvasrzwkmsodsw.supabase.co/functions/v1/pilot-api"
@@ -74,8 +74,8 @@ def build(state: str) -> dict[str, object]:
     if state == "live" and (not enabled or not direct):
         raise ValueError("R5 live requires fieldingEnabled=true and directEntryEnabled=true")
     migration = TRANSITION.read_text(encoding="utf-8")
-    if instrument["instrument_sha256"] not in migration or "128bd0818eb511c79aceedca316f151008dce566849b19aa8ec8eaa5307f5e30" not in migration:
-        raise ValueError("R5 transition migration is not bound to H5 and H6")
+    if instrument["instrument_sha256"] not in migration or "e7521402145052c53cd2f4d7c95d4259080526f3a413a40c45f5f4b988cf6403" not in migration:
+        raise ValueError("R5 transition migration is not bound to H6 and H7")
     payload = {
         "schema_version": "1.0",
         "deployment_state": state,
