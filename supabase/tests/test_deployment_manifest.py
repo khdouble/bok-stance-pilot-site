@@ -33,12 +33,18 @@ class DeploymentManifestTests(unittest.TestCase):
         for name in ("site-config.js", "privacy.html"):
             (docs / name).write_bytes((REPOSITORY / "docs" / name).read_bytes())
         config_path = docs / "site-config.js"
-        config = config_path.read_text(encoding="utf-8").replace(
-            'hostedVersion: "v260903-pilot-hosted-1"',
+        instrument = json.loads(instrument_path.read_text(encoding="utf-8"))
+        config = config_path.read_text(encoding="utf-8")
+        config = config.replace(
+            'hostedVersion: "v260909-r5-public-2"',
             f'hostedVersion: "{build_public_instrument.HOSTED_VERSION}"',
+        ).replace(
+            'de96c00e9f95a9035cfc54a1bf18cc0d24b3465f7b5edc05cd9669a3fbfa7dee',
+            instrument["source_offline_instrument_sha256"],
+        ).replace('fieldingEnabled: true', 'fieldingEnabled: false').replace(
+            'directEntryEnabled: true', 'directEntryEnabled: false'
         )
         config_path.write_text(config, encoding="utf-8", newline="\n")
-        instrument = json.loads(instrument_path.read_text(encoding="utf-8"))
         transition = Path(directory) / "transition.sql"
         previous = transition_module.load_json(
             REPOSITORY / transition_module.PREVIOUS_INSTRUMENT_RELATIVE

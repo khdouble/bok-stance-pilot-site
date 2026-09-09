@@ -160,22 +160,15 @@ class RemoteE2ETests(unittest.TestCase):
                     now=self.now,
                 )
 
-    def test_config_override_changes_only_two_fields(self) -> None:
+    def test_live_config_is_used_byte_for_byte(self) -> None:
         original = (REPOSITORY_ROOT / "docs" / "site-config.js").read_bytes()
-        override, stamp = module.make_config_override(original, self.now)
-        original_text = original.decode("utf-8")
-        override_text = override.decode("utf-8")
-        self.assertIn("fieldingEnabled: false", original_text)
-        self.assertIn("fieldingEnabled: true", override_text)
-        self.assertIn('remoteE2eVerifiedAt: "PENDING_PI"', original_text)
-        self.assertIn(f'remoteE2eVerifiedAt: "{stamp}"', override_text)
-        restored = override_text.replace(
-            "fieldingEnabled: true", "fieldingEnabled: false"
-        ).replace(stamp, "PENDING_PI")
-        self.assertEqual(restored.encode("utf-8"), original)
+        effective, stamp = module.make_config_override(original, self.now)
+        self.assertIn("fieldingEnabled: true", original.decode("utf-8"))
+        self.assertEqual(effective, original)
+        self.assertEqual(stamp, module._utc_seconds(self.now))
 
     def staged_assets(self) -> dict[str, bytes]:
-        from tools.build_public_instrument import RELEASE_SOURCE_PATHS
+        from tools.build_r5_public_instrument import RELEASE_SOURCE_PATHS
 
         assets = module.local_assets(REPOSITORY_ROOT)
         instrument = json.loads(assets["instrument.json"].decode("utf-8"))
@@ -199,7 +192,7 @@ class RemoteE2ETests(unittest.TestCase):
             f'"{instrument["instrument_sha256"]}";\n'
         ).encode("utf-8")
         manifest = json.loads(assets["deployment-manifest.json"].decode("utf-8"))
-        manifest["deployment_state"] = "staging"
+        manifest["deployment_state"] = "live"
         manifest["instrument_sha256"] = instrument["instrument_sha256"]
         manifest["operational_file_hashes"] = {
             "privacy_notice": module._sha256(assets["privacy.html"]),

@@ -12,30 +12,11 @@ if str(TOOLS) not in sys.path:
     sys.path.insert(0, str(TOOLS))
 
 from tools import validate_release
-from tools.render_instrument_transition import TRANSITION_MIGRATION_RELATIVE
-
-
-SOURCE_PILOT = (
-    REPOSITORY.parent / "latent_stance_pipeline" / "02_annotation" / "pilot"
-)
 
 
 class ActualTreeReleaseValidationTests(unittest.TestCase):
-    def test_checked_in_tree_is_fail_closed_and_activates_with_transition(self) -> None:
-        self.assertTrue(
-            (SOURCE_PILOT / "response_template.csv").is_file(),
-            "frozen source-pilot fixture is unavailable",
-        )
-        result = validate_release.validate(REPOSITORY, SOURCE_PILOT, "staging")
-        transition = REPOSITORY / TRANSITION_MIGRATION_RELATIVE
-        if not transition.is_file():
-            self.assertEqual(
-                [failure["check"] for failure in result.failures],
-                ["required_public_files"],
-                "before 005 exists, the checked-in tree must fail only at the "
-                "deliberately missing required transition",
-            )
-            return
+    def test_checked_in_r5_live_release_is_valid(self) -> None:
+        result = validate_release.validate(REPOSITORY, expected_fielding="live")
         self.assertEqual(
             result.failures,
             [],

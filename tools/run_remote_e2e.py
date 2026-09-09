@@ -349,7 +349,12 @@ def load_private_identity_and_receipt(
 def make_config_override(
     original: bytes, verified_at: datetime
 ) -> tuple[bytes, str]:
-    """Return the exact two-field, browser-memory-only staging override."""
+    """Return the browser-memory config used for a disposable E2E.
+
+    A published live release is tested byte-for-byte without a configuration
+    change.  The retained staging path changes only the fielding gate and the
+    verification timestamp in browser memory.
+    """
     try:
         text = original.decode("utf-8")
     except UnicodeDecodeError as exc:
@@ -362,15 +367,13 @@ def make_config_override(
     )
     field_matches = list(field_pattern.finditer(text))
     time_matches = list(time_pattern.finditer(text))
-    if (
-        len(field_matches) != 1
-        or field_matches[0].group(2) != "false"
-        or len(time_matches) != 1
-    ):
-        raise E2EError("deployed config is not a unique HOLD configuration")
+    if len(field_matches) != 1 or len(time_matches) != 1:
+        raise E2EError("deployed config is not uniquely parseable")
     stamp = _utc_seconds(verified_at)
     if not UTC_RE.fullmatch(stamp) or verified_at > datetime.now(timezone.utc) + timedelta(seconds=1):
         raise E2EError("in-memory E2E verification timestamp is invalid")
+    if field_matches[0].group(2) == "true":
+        return original, stamp
     original_time = time_matches[0].group(0).split('"')[1]
     overridden = field_pattern.sub(r"\1true\3", text, count=1)
     overridden = time_pattern.sub(
@@ -479,9 +482,9 @@ def validate_remote_release(
     tools_path = Path(__file__).resolve().parent
     if str(tools_path) not in sys.path:
         sys.path.insert(0, str(tools_path))
-    from build_public_instrument import RELEASE_SOURCE_PATHS
+    from build_r5_public_instrument import RELEASE_SOURCE_PATHS
     from pi_config import boolean_value, quoted_value, validate_live_config
-    from render_instrument_transition import TRANSITION_MIGRATION_RELATIVE
+    from build_r5_deployment_manifest import TRANSITION as transition_path_constant
 
     try:
         published_fielding = boolean_value(config_text, "fieldingEnabled")
@@ -495,9 +498,13 @@ def validate_remote_release(
     except ValueError as exc:
         raise E2EError("deployed site config has an invalid schema") from exc
     if published_fielding:
-        raise E2EError("deployed site config must remain on HOLD during E2E")
+        release_state = "live"
+        validation_config = config_text
+    else:
+        release_state = "staging"
+        validation_config = override.decode("utf-8")
     override_errors = validate_live_config(
-        override.decode("utf-8"),
+        validation_config,
         privacy_text,
         today=verified_at.date(),
         now=verified_at + timedelta(seconds=1),
@@ -507,7 +514,7 @@ def validate_remote_release(
 
     expected_identity = {
         "schema_version": "1.0",
-        "deployment_state": "staging",
+        "deployment_state": release_state,
         "site_url": SITE_URL,
         "api_url": API_URL,
         "hosted_version": instrument.get("hosted_version"),
@@ -531,9 +538,7 @@ def validate_remote_release(
     }:
         raise E2EError("deployed operational asset hashes are stale")
     repository_root = Path(__file__).resolve().parents[1]
-    transition_path = transition_migration_path or (
-        repository_root / TRANSITION_MIGRATION_RELATIVE
-    )
+    transition_path = transition_migration_path or transition_path_constant
     try:
         expected_transition_hash = _sha256(transition_path.read_bytes())
     except OSError as exc:
@@ -585,6 +590,7 @@ def validate_remote_release(
         "instrument": instrument,
         "config_override": override,
         "override_timestamp": stamp,
+        "published_fielding": published_fielding,
         "asset_hashes": {name: _sha256(remote[name]) for name in REMOTE_FILES},
     }
 
@@ -1398,7 +1404,7 @@ def main(argv: list[str] | None = None) -> int:
             raise E2EError(
                 "--confirm-open-e2e is accepted only with linked-cli"
             )
-        print("PASS: deployed staging assets and identities are exact")
+        print("PASS: deployed release assets and identities are exact")
 
         failure_stage = "gate-precheck"
         before = (
@@ -1498,7 +1504,7 @@ def main(argv: list[str] | None = None) -> int:
             "source_attestation_sha256": invite["provision_file_sha256"],
             "asset_attestations": asset_attestations(release["asset_hashes"]),
             "config_override_sha256": _sha256(release["config_override"]),
-            "published_hold_preserved": True,
+            "published_config_unchanged": release.get("published_fielding", True) is True,
             "config_intercept_count": browser_result["config_intercept_count"],
             "browser_asset_count": browser_result["asset_count"],
             "assignment_count": browser_result["assignment_count"],

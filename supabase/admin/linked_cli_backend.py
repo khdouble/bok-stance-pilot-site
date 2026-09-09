@@ -30,7 +30,13 @@ CLI_ENVELOPE_KEYS = frozenset({"boundary", "rows", "warning"})
 MAX_STDOUT_BYTES = 1_000_000
 MAX_STDERR_BYTES = 16_384
 MAX_SAFE_COUNT = 1_000_000
-VERSION_STDERR_ALLOWLIST = frozenset({""})
+CLI_UPDATE_NOTICE = (
+    "A new version of Supabase CLI is available: v2.117.0 "
+    "(currently installed v2.116.0)\n"
+    "We recommend updating regularly for new features and bug fixes: "
+    "https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli\n"
+)
+VERSION_STDERR_ALLOWLIST = frozenset({"", CLI_UPDATE_NOTICE})
 VERSION_STDOUT_ALLOWLIST = frozenset(
     {
         EXPECTED_CLI_VERSION,
@@ -43,6 +49,9 @@ QUERY_STDERR_ALLOWLIST = frozenset(
         "",
         "Initialising login role...\n",
         "Initialising login role...\nConnecting to remote database...\n",
+        CLI_UPDATE_NOTICE,
+        "Initialising login role...\n" + CLI_UPDATE_NOTICE,
+        "Initialising login role...\nConnecting to remote database...\n" + CLI_UPDATE_NOTICE,
     }
 )
 BOUNDARY_RE = re.compile(r"^[0-9a-f]{32}$")
@@ -56,7 +65,9 @@ VERSION_RE = re.compile(
     r"^(?:consent|withdrawal)-v(?P<date>[0-9]{4}-[0-9]{2}-[0-9]{2})"
     r"-r[1-9][0-9]*$"
 )
-HOSTED_VERSION_RE = re.compile(r"^v[0-9]{6}-pilot-hosted-[1-9][0-9]*$")
+HOSTED_VERSION_RE = re.compile(
+    r"^v[0-9]{6}-(?:pilot-hosted|r5-public)-[1-9][0-9]*$"
+)
 UTC_RE = re.compile(
     r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T"
     r"[0-9]{2}:[0-9]{2}:[0-9]{2}"

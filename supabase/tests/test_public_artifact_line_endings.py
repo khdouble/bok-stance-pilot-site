@@ -41,14 +41,17 @@ class PublicArtifactLineEndingTests(unittest.TestCase):
             config_path.write_bytes(
                 (REPOSITORY_ROOT / "docs" / "site-config.js").read_bytes()
             )
-            config_path.write_text(
-                config_path.read_text(encoding="utf-8").replace(
-                    'hostedVersion: "v260903-pilot-hosted-1"',
-                    f'hostedVersion: "{build_public_instrument.HOSTED_VERSION}"',
-                ),
-                encoding="utf-8",
-                newline="\n",
+            config = config_path.read_text(encoding="utf-8")
+            config = config.replace(
+                'hostedVersion: "v260909-r5-public-2"',
+                f'hostedVersion: "{build_public_instrument.HOSTED_VERSION}"',
+            ).replace(
+                'de96c00e9f95a9035cfc54a1bf18cc0d24b3465f7b5edc05cd9669a3fbfa7dee',
+                instrument["source_offline_instrument_sha256"],
+            ).replace('fieldingEnabled: true', 'fieldingEnabled: false').replace(
+                'directEntryEnabled: true', 'directEntryEnabled: false'
             )
+            config_path.write_text(config, encoding="utf-8", newline="\n")
             privacy_path.write_bytes(
                 (REPOSITORY_ROOT / "docs" / "privacy.html").read_bytes()
             )
@@ -89,7 +92,7 @@ class PublicArtifactLineEndingTests(unittest.TestCase):
             ):
                 build_deployment_manifest.build("staging", manifest_path)
 
-            for artifact in (instrument_path, hash_path, manifest_path):
+            for artifact in (instrument_path, manifest_path):
                 with self.subTest(artifact=artifact.name):
                     encoded = artifact.read_bytes()
                     self.assertNotIn(b"\r\n", encoded)

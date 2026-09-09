@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Any
 
 
-OFFLINE_PARENT_SHA256 = "b594a196eb7be720e57d974f4b5c6e4437b697e6ae20f01013e830af35707a51"
-HOSTED_VERSION = "v260903-pilot-hosted-2"
+OFFLINE_PARENT_SHA256 = "de96c00e9f95a9035cfc54a1bf18cc0d24b3465f7b5edc05cd9669a3fbfa7dee"
+HOSTED_VERSION = "v260909-r5-public-2"
 RESPONSE_COUNT = 12
 UUID_V4 = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 HEX_64 = re.compile(r"^[0-9a-f]{64}$")
@@ -39,9 +39,9 @@ FEEDBACK_COLUMNS = (
 )
 COMMON_FIXED = {
     "instrument_version": HOSTED_VERSION,
-    "dataset_role": "synthetic_usability_pilot",
+    "dataset_role": "r3_content_response_pilot",
     "excluded_from_analysis": "true",
-    "analysis_exclusion_reason": "synthetic_usability_only_never_analysis",
+    "analysis_exclusion_reason": "r3_repilot_never_analysis",
 }
 
 
@@ -289,9 +289,9 @@ def write_collection(
         "instrument_sha256": instrument_hash,
         "instrument_version": HOSTED_VERSION,
         "parent_offline_instrument_sha256": OFFLINE_PARENT_SHA256,
-        "dataset_role": "synthetic_usability_pilot",
+        "dataset_role": "r3_content_response_pilot",
         "excluded_from_analysis": True,
-        "analysis_exclusion_reason": "synthetic_usability_only_never_analysis",
+        "analysis_exclusion_reason": "r3_repilot_never_analysis",
         "submission_count": validated["submission_count"],
         "response_count": validated["response_count"],
         "assignment_codes": validated["assignment_codes"],

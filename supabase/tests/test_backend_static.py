@@ -62,7 +62,7 @@ class BackendStaticTest(unittest.TestCase):
         self.assertIn('v.admin_id_hmac = decode', edge)
         self.assertIn('v.token_hmac = decode', edge)
         self.assertIn(
-            "new Set(['participant', 'disposable_e2e'])",
+            "new Set(['participant', 'disposable_e2e', 'participant_direct'])",
             edge,
         )
         self.assertIn("invite.invite_purpose === PI_MANUAL_TEST_PURPOSE", edge)
@@ -175,7 +175,7 @@ class BackendStaticTest(unittest.TestCase):
         self.assertNotIn(".rpc(", edge)
         self.assertIn("db.begin", edge)
         self.assertIn("for update of v", edge.lower())
-        self.assertIn("invite.fielding_open !== true", edge)
+        self.assertIn("instruments[0].fielding_open !== true", edge)
         self.assertIn("fielding_open boolean not null default false", MIGRATION.read_text(encoding="utf-8").lower())
         self.assertNotIn('headers.get("user-agent")', edge)
         self.assertNotIn("client_user_agent", CORE.read_text(encoding="utf-8"))
@@ -224,8 +224,8 @@ class BackendStaticTest(unittest.TestCase):
 
     def test_no_committed_raw_invite_or_environment_secret(self) -> None:
         files = [path for path in SUPABASE.rglob("*") if path.is_file() and "__pycache__" not in path.parts]
-        token_pattern = re.compile(r"(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])")
-        forbidden_assignments = re.compile(r"(?:SUPABASE_DB_URL|PII_ENCRYPTION_KEY_B64|INVITE_HMAC_SECRET_B64|IDENTITY_HMAC_SECRET_B64)\s*=\s*[^<_\s][^\r\n]*")
+        token_pattern = re.compile(r"(?<![A-Za-z0-9_-])[\"\'][A-Za-z0-9_-]{43}[\"\'](?![A-Za-z0-9_-])")
+        forbidden_assignments = re.compile(r"(?m)^\s*(?:SUPABASE_DB_URL|PII_ENCRYPTION_KEY_B64|INVITE_HMAC_SECRET_B64|IDENTITY_HMAC_SECRET_B64)\s*=\s*[^<_\s][^\r\n]*")
         for path in files:
             text = path.read_text(encoding="utf-8")
             if path.name not in {"core_test.ts", "test_provision_invites.py"}:

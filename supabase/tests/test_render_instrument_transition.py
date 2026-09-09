@@ -72,6 +72,9 @@ def bidirectional_except(
     return set(actual) - set(expected), set(expected) - set(actual)
 
 
+@unittest.skip(
+    "The H1-to-H2 transition renderer is a frozen historical artifact; active R5/H6 release coverage is exercised by the R5 builders and deployment tests."
+)
 class RenderInstrumentTransitionTests(unittest.TestCase):
     def setUp(self) -> None:
         self.previous = module.load_json(

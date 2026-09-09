@@ -39,7 +39,7 @@ PENDING_KEYS = frozenset(
         "source_attestation_sha256",
         "asset_attestations",
         "config_override_sha256",
-        "published_hold_preserved",
+        "published_config_unchanged",
         "config_intercept_count",
         "browser_asset_count",
         "assignment_count",
@@ -98,7 +98,7 @@ def validate_pending_receipt(
         or receipt.get("api_url") != e2e.API_URL
         or receipt.get("cleanup_required") is not True
         or receipt.get("fielding_authorized") is not False
-        or receipt.get("published_hold_preserved") is not True
+        or receipt.get("published_config_unchanged") is not True
     ):
         raise FinalizeError("pending receipt identity or state is invalid")
 
@@ -436,7 +436,7 @@ def main(argv: list[str] | None = None) -> int:
                 release["asset_hashes"]
             ),
             "config_override_sha256": receipt["config_override_sha256"],
-            "published_hold_preserved": True,
+            "published_config_unchanged": True,
             "cleanup_verified": True,
             "database_zero_verified": True,
             "cleanup_required": False,

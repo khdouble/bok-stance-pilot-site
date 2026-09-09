@@ -172,7 +172,10 @@ def load_release_version(
     ):
         raise ValueError("public instrument identity is invalid")
     version = payload["hosted_version"]
-    if not re.fullmatch(r"^v[0-9]{6}-pilot-hosted-[1-9][0-9]*$", version):
+    if not re.fullmatch(
+        r"^v[0-9]{6}-(?:pilot-hosted|r5-public)-[1-9][0-9]*$",
+        version,
+    ):
         raise ValueError("public instrument identity is invalid")
     return version
 

@@ -1,7 +1,7 @@
 {
-  "instrument_sha256": "128bd0818eb511c79aceedca316f151008dce566849b19aa8ec8eaa5307f5e30",
+  "instrument_sha256": "e7521402145052c53cd2f4d7c95d4259080526f3a413a40c45f5f4b988cf6403",
   "schema_version": "1.0",
-  "hosted_version": "v260908-r5-public-1",
+  "hosted_version": "v260909-r5-public-2",
   "source_offline_instrument_sha256": "de96c00e9f95a9035cfc54a1bf18cc0d24b3465f7b5edc05cd9669a3fbfa7dee",
   "dataset_role": "r3_content_response_pilot",
   "excluded_from_analysis": true,
@@ -114,84 +114,84 @@
   "assignments": {
     "PILOT_R01": [
       {
-        "assignment_id": "H5_PILOT_R01_01",
+        "assignment_id": "H6_PILOT_R01_01",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 1,
         "pilot_item_id": "19990304_S002",
         "sentence_text": "다만 엔화 약세 등으로 인한 수출부진 가능성, 기업 구조조정과정에서의 노사갈등 우려 등 대내외 불안요인이 잠재해 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R01_02",
+        "assignment_id": "H6_PILOT_R01_02",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 2,
         "pilot_item_id": "20010508_S005",
         "sentence_text": "앞으로도 물가 및 경기, 금융시장 상황, 대외여건 변화 등을 종합적으로 감안하여 경기회복을 뒷받침하면서도 수요면에서 물가압력이 발생하지 않도록 통화정책을 운용할 것이며 특히 최근의 물가상승세가 일반의 인플레기대심리 확산으로 이어지지 않도록 유의할 것임"
       },
       {
-        "assignment_id": "H5_PILOT_R01_03",
+        "assignment_id": "H6_PILOT_R01_03",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 3,
         "pilot_item_id": "20040812_S002",
         "sentence_text": "물가면에서는 국제유가 급등 등의 영향으로 상승압력이 높아지고 있으나 내수 저조로 수요압력이 미약하여 근원인플레이션율은 목표범위 내에서 유지되고 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R01_04",
+        "assignment_id": "H6_PILOT_R01_04",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 4,
         "pilot_item_id": "20060309_S001",
         "sentence_text": "실물경제는 건설투자의 증가가 미약하나 수출이 견실한 증가세를 유지하고 민간소비가 회복세를 지속하는 가운데 설비투자도 증가세를 이어가고 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R01_05",
+        "assignment_id": "H6_PILOT_R01_05",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 5,
         "pilot_item_id": "20071207_S004",
         "sentence_text": "소비자물가는 고유가의 영향 등으로 상승세가 확대되는 모습을 보이고 있으며 부동산가격은 오름세가 제한되고 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R01_06",
+        "assignment_id": "H6_PILOT_R01_06",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 6,
         "pilot_item_id": "20090409_S006",
         "sentence_text": "앞으로 통화정책은 당분간 금융완화기조를 유지하면서 경기의 과도한 위축을 방지하고 금융시장 안정을 도모하는 데 주안점을 두고 운용해 나갈 것임"
       },
       {
-        "assignment_id": "H5_PILOT_R01_07",
+        "assignment_id": "H6_PILOT_R01_07",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 7,
         "pilot_item_id": "20111013_S008",
         "sentence_text": "앞으로 농산물가격 하락 및 전년도로부터의 기저효과 등이 물가상승률을 낮추는 요인으로 작용하겠으나, 계속 높게 유지되고 있는 인플레이션 기대심리 등으로 물가상승률의 하락 속도는 완만할 것으로 예상된다."
       },
       {
-        "assignment_id": "H5_PILOT_R01_08",
+        "assignment_id": "H6_PILOT_R01_08",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 8,
         "pilot_item_id": "20120608_S005",
         "sentence_text": "국내경제를 보면, 수출이 대체로 전년도 수준을 유지하는 가운데 소비와 설비투자가 소폭 증가로 전환하면서 미약하나마 성장세는 이어지고 있다."
       },
       {
-        "assignment_id": "H5_PILOT_R01_09",
+        "assignment_id": "H6_PILOT_R01_09",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 9,
         "pilot_item_id": "20150409_S004",
         "sentence_text": "국내경제를 보면, 경제주체들의 심리가 뚜렷이 회복되지 못한 가운데 수출이 석유제품 등의 단가하락 등에 기인하여 감소세를 지속하였으나 소비, 투자 등 내수는 개선되는 모습을 나타내었다."
       },
       {
-        "assignment_id": "H5_PILOT_R01_10",
+        "assignment_id": "H6_PILOT_R01_10",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 10,
         "pilot_item_id": "20250116_S019",
         "sentence_text": "국내경제는 물가상승률이 안정적인 흐름을 이어가고 있으나 정치적 리스크 확대로 성장의 하방위험이 증대되고 경제전망의 불확실성도 커진 상황이다."
       },
       {
-        "assignment_id": "H5_PILOT_R01_11",
+        "assignment_id": "H6_PILOT_R01_11",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 11,
         "pilot_item_id": "20240412_S018",
         "sentence_text": "국내경제는 성장세가 개선 흐름을 지속하는 가운데 근원물가 상승률의 둔화 추세가 이어질 것으로 예상되지만 소비자물가 전망과 관련한 불확실성이 높기 때문에 물가가 목표수준으로 수렴할 것으로 확신하기는 아직 이른 상황이다."
       },
       {
-        "assignment_id": "H5_PILOT_R01_12",
+        "assignment_id": "H6_PILOT_R01_12",
         "pilot_rater_id": "PILOT_R01",
         "display_position": 12,
         "pilot_item_id": "20260410_S016",
@@ -200,84 +200,84 @@
     ],
     "PILOT_R02": [
       {
-        "assignment_id": "H5_PILOT_R02_01",
+        "assignment_id": "H6_PILOT_R02_01",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 1,
         "pilot_item_id": "20060309_S001",
         "sentence_text": "실물경제는 건설투자의 증가가 미약하나 수출이 견실한 증가세를 유지하고 민간소비가 회복세를 지속하는 가운데 설비투자도 증가세를 이어가고 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R02_02",
+        "assignment_id": "H6_PILOT_R02_02",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 2,
         "pilot_item_id": "20250116_S019",
         "sentence_text": "국내경제는 물가상승률이 안정적인 흐름을 이어가고 있으나 정치적 리스크 확대로 성장의 하방위험이 증대되고 경제전망의 불확실성도 커진 상황이다."
       },
       {
-        "assignment_id": "H5_PILOT_R02_03",
+        "assignment_id": "H6_PILOT_R02_03",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 3,
         "pilot_item_id": "20010508_S005",
         "sentence_text": "앞으로도 물가 및 경기, 금융시장 상황, 대외여건 변화 등을 종합적으로 감안하여 경기회복을 뒷받침하면서도 수요면에서 물가압력이 발생하지 않도록 통화정책을 운용할 것이며 특히 최근의 물가상승세가 일반의 인플레기대심리 확산으로 이어지지 않도록 유의할 것임"
       },
       {
-        "assignment_id": "H5_PILOT_R02_04",
+        "assignment_id": "H6_PILOT_R02_04",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 4,
         "pilot_item_id": "20240412_S018",
         "sentence_text": "국내경제는 성장세가 개선 흐름을 지속하는 가운데 근원물가 상승률의 둔화 추세가 이어질 것으로 예상되지만 소비자물가 전망과 관련한 불확실성이 높기 때문에 물가가 목표수준으로 수렴할 것으로 확신하기는 아직 이른 상황이다."
       },
       {
-        "assignment_id": "H5_PILOT_R02_05",
+        "assignment_id": "H6_PILOT_R02_05",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 5,
         "pilot_item_id": "20120608_S005",
         "sentence_text": "국내경제를 보면, 수출이 대체로 전년도 수준을 유지하는 가운데 소비와 설비투자가 소폭 증가로 전환하면서 미약하나마 성장세는 이어지고 있다."
       },
       {
-        "assignment_id": "H5_PILOT_R02_06",
+        "assignment_id": "H6_PILOT_R02_06",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 6,
         "pilot_item_id": "19990304_S002",
         "sentence_text": "다만 엔화 약세 등으로 인한 수출부진 가능성, 기업 구조조정과정에서의 노사갈등 우려 등 대내외 불안요인이 잠재해 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R02_07",
+        "assignment_id": "H6_PILOT_R02_07",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 7,
         "pilot_item_id": "20260410_S016",
         "sentence_text": "향후 물가경로는 국제유가 및 환율 움직임, 정부 물가안정 대책의 효과, 비용상승의 파급 정도 등과 관련한 불확실성이 매우 높은 상황이다."
       },
       {
-        "assignment_id": "H5_PILOT_R02_08",
+        "assignment_id": "H6_PILOT_R02_08",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 8,
         "pilot_item_id": "20040812_S002",
         "sentence_text": "물가면에서는 국제유가 급등 등의 영향으로 상승압력이 높아지고 있으나 내수 저조로 수요압력이 미약하여 근원인플레이션율은 목표범위 내에서 유지되고 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R02_09",
+        "assignment_id": "H6_PILOT_R02_09",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 9,
         "pilot_item_id": "20150409_S004",
         "sentence_text": "국내경제를 보면, 경제주체들의 심리가 뚜렷이 회복되지 못한 가운데 수출이 석유제품 등의 단가하락 등에 기인하여 감소세를 지속하였으나 소비, 투자 등 내수는 개선되는 모습을 나타내었다."
       },
       {
-        "assignment_id": "H5_PILOT_R02_10",
+        "assignment_id": "H6_PILOT_R02_10",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 10,
         "pilot_item_id": "20071207_S004",
         "sentence_text": "소비자물가는 고유가의 영향 등으로 상승세가 확대되는 모습을 보이고 있으며 부동산가격은 오름세가 제한되고 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R02_11",
+        "assignment_id": "H6_PILOT_R02_11",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 11,
         "pilot_item_id": "20111013_S008",
         "sentence_text": "앞으로 농산물가격 하락 및 전년도로부터의 기저효과 등이 물가상승률을 낮추는 요인으로 작용하겠으나, 계속 높게 유지되고 있는 인플레이션 기대심리 등으로 물가상승률의 하락 속도는 완만할 것으로 예상된다."
       },
       {
-        "assignment_id": "H5_PILOT_R02_12",
+        "assignment_id": "H6_PILOT_R02_12",
         "pilot_rater_id": "PILOT_R02",
         "display_position": 12,
         "pilot_item_id": "20090409_S006",
@@ -286,84 +286,84 @@
     ],
     "PILOT_R03": [
       {
-        "assignment_id": "H5_PILOT_R03_01",
+        "assignment_id": "H6_PILOT_R03_01",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 1,
         "pilot_item_id": "20111013_S008",
         "sentence_text": "앞으로 농산물가격 하락 및 전년도로부터의 기저효과 등이 물가상승률을 낮추는 요인으로 작용하겠으나, 계속 높게 유지되고 있는 인플레이션 기대심리 등으로 물가상승률의 하락 속도는 완만할 것으로 예상된다."
       },
       {
-        "assignment_id": "H5_PILOT_R03_02",
+        "assignment_id": "H6_PILOT_R03_02",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 2,
         "pilot_item_id": "19990304_S002",
         "sentence_text": "다만 엔화 약세 등으로 인한 수출부진 가능성, 기업 구조조정과정에서의 노사갈등 우려 등 대내외 불안요인이 잠재해 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R03_03",
+        "assignment_id": "H6_PILOT_R03_03",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 3,
         "pilot_item_id": "20240412_S018",
         "sentence_text": "국내경제는 성장세가 개선 흐름을 지속하는 가운데 근원물가 상승률의 둔화 추세가 이어질 것으로 예상되지만 소비자물가 전망과 관련한 불확실성이 높기 때문에 물가가 목표수준으로 수렴할 것으로 확신하기는 아직 이른 상황이다."
       },
       {
-        "assignment_id": "H5_PILOT_R03_04",
+        "assignment_id": "H6_PILOT_R03_04",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 4,
         "pilot_item_id": "20071207_S004",
         "sentence_text": "소비자물가는 고유가의 영향 등으로 상승세가 확대되는 모습을 보이고 있으며 부동산가격은 오름세가 제한되고 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R03_05",
+        "assignment_id": "H6_PILOT_R03_05",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 5,
         "pilot_item_id": "20120608_S005",
         "sentence_text": "국내경제를 보면, 수출이 대체로 전년도 수준을 유지하는 가운데 소비와 설비투자가 소폭 증가로 전환하면서 미약하나마 성장세는 이어지고 있다."
       },
       {
-        "assignment_id": "H5_PILOT_R03_06",
+        "assignment_id": "H6_PILOT_R03_06",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 6,
         "pilot_item_id": "20040812_S002",
         "sentence_text": "물가면에서는 국제유가 급등 등의 영향으로 상승압력이 높아지고 있으나 내수 저조로 수요압력이 미약하여 근원인플레이션율은 목표범위 내에서 유지되고 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R03_07",
+        "assignment_id": "H6_PILOT_R03_07",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 7,
         "pilot_item_id": "20260410_S016",
         "sentence_text": "향후 물가경로는 국제유가 및 환율 움직임, 정부 물가안정 대책의 효과, 비용상승의 파급 정도 등과 관련한 불확실성이 매우 높은 상황이다."
       },
       {
-        "assignment_id": "H5_PILOT_R03_08",
+        "assignment_id": "H6_PILOT_R03_08",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 8,
         "pilot_item_id": "20010508_S005",
         "sentence_text": "앞으로도 물가 및 경기, 금융시장 상황, 대외여건 변화 등을 종합적으로 감안하여 경기회복을 뒷받침하면서도 수요면에서 물가압력이 발생하지 않도록 통화정책을 운용할 것이며 특히 최근의 물가상승세가 일반의 인플레기대심리 확산으로 이어지지 않도록 유의할 것임"
       },
       {
-        "assignment_id": "H5_PILOT_R03_09",
+        "assignment_id": "H6_PILOT_R03_09",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 9,
         "pilot_item_id": "20250116_S019",
         "sentence_text": "국내경제는 물가상승률이 안정적인 흐름을 이어가고 있으나 정치적 리스크 확대로 성장의 하방위험이 증대되고 경제전망의 불확실성도 커진 상황이다."
       },
       {
-        "assignment_id": "H5_PILOT_R03_10",
+        "assignment_id": "H6_PILOT_R03_10",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 10,
         "pilot_item_id": "20060309_S001",
         "sentence_text": "실물경제는 건설투자의 증가가 미약하나 수출이 견실한 증가세를 유지하고 민간소비가 회복세를 지속하는 가운데 설비투자도 증가세를 이어가고 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R03_11",
+        "assignment_id": "H6_PILOT_R03_11",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 11,
         "pilot_item_id": "20090409_S006",
         "sentence_text": "앞으로 통화정책은 당분간 금융완화기조를 유지하면서 경기의 과도한 위축을 방지하고 금융시장 안정을 도모하는 데 주안점을 두고 운용해 나갈 것임"
       },
       {
-        "assignment_id": "H5_PILOT_R03_12",
+        "assignment_id": "H6_PILOT_R03_12",
         "pilot_rater_id": "PILOT_R03",
         "display_position": 12,
         "pilot_item_id": "20150409_S004",
@@ -372,84 +372,84 @@
     ],
     "PILOT_R04": [
       {
-        "assignment_id": "H5_PILOT_R04_01",
+        "assignment_id": "H6_PILOT_R04_01",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 1,
         "pilot_item_id": "20150409_S004",
         "sentence_text": "국내경제를 보면, 경제주체들의 심리가 뚜렷이 회복되지 못한 가운데 수출이 석유제품 등의 단가하락 등에 기인하여 감소세를 지속하였으나 소비, 투자 등 내수는 개선되는 모습을 나타내었다."
       },
       {
-        "assignment_id": "H5_PILOT_R04_02",
+        "assignment_id": "H6_PILOT_R04_02",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 2,
         "pilot_item_id": "20090409_S006",
         "sentence_text": "앞으로 통화정책은 당분간 금융완화기조를 유지하면서 경기의 과도한 위축을 방지하고 금융시장 안정을 도모하는 데 주안점을 두고 운용해 나갈 것임"
       },
       {
-        "assignment_id": "H5_PILOT_R04_03",
+        "assignment_id": "H6_PILOT_R04_03",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 3,
         "pilot_item_id": "20060309_S001",
         "sentence_text": "실물경제는 건설투자의 증가가 미약하나 수출이 견실한 증가세를 유지하고 민간소비가 회복세를 지속하는 가운데 설비투자도 증가세를 이어가고 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R04_04",
+        "assignment_id": "H6_PILOT_R04_04",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 4,
         "pilot_item_id": "20260410_S016",
         "sentence_text": "향후 물가경로는 국제유가 및 환율 움직임, 정부 물가안정 대책의 효과, 비용상승의 파급 정도 등과 관련한 불확실성이 매우 높은 상황이다."
       },
       {
-        "assignment_id": "H5_PILOT_R04_05",
+        "assignment_id": "H6_PILOT_R04_05",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 5,
         "pilot_item_id": "20040812_S002",
         "sentence_text": "물가면에서는 국제유가 급등 등의 영향으로 상승압력이 높아지고 있으나 내수 저조로 수요압력이 미약하여 근원인플레이션율은 목표범위 내에서 유지되고 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R04_06",
+        "assignment_id": "H6_PILOT_R04_06",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 6,
         "pilot_item_id": "20111013_S008",
         "sentence_text": "앞으로 농산물가격 하락 및 전년도로부터의 기저효과 등이 물가상승률을 낮추는 요인으로 작용하겠으나, 계속 높게 유지되고 있는 인플레이션 기대심리 등으로 물가상승률의 하락 속도는 완만할 것으로 예상된다."
       },
       {
-        "assignment_id": "H5_PILOT_R04_07",
+        "assignment_id": "H6_PILOT_R04_07",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 7,
         "pilot_item_id": "19990304_S002",
         "sentence_text": "다만 엔화 약세 등으로 인한 수출부진 가능성, 기업 구조조정과정에서의 노사갈등 우려 등 대내외 불안요인이 잠재해 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R04_08",
+        "assignment_id": "H6_PILOT_R04_08",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 8,
         "pilot_item_id": "20250116_S019",
         "sentence_text": "국내경제는 물가상승률이 안정적인 흐름을 이어가고 있으나 정치적 리스크 확대로 성장의 하방위험이 증대되고 경제전망의 불확실성도 커진 상황이다."
       },
       {
-        "assignment_id": "H5_PILOT_R04_09",
+        "assignment_id": "H6_PILOT_R04_09",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 9,
         "pilot_item_id": "20071207_S004",
         "sentence_text": "소비자물가는 고유가의 영향 등으로 상승세가 확대되는 모습을 보이고 있으며 부동산가격은 오름세가 제한되고 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R04_10",
+        "assignment_id": "H6_PILOT_R04_10",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 10,
         "pilot_item_id": "20240412_S018",
         "sentence_text": "국내경제는 성장세가 개선 흐름을 지속하는 가운데 근원물가 상승률의 둔화 추세가 이어질 것으로 예상되지만 소비자물가 전망과 관련한 불확실성이 높기 때문에 물가가 목표수준으로 수렴할 것으로 확신하기는 아직 이른 상황이다."
       },
       {
-        "assignment_id": "H5_PILOT_R04_11",
+        "assignment_id": "H6_PILOT_R04_11",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 11,
         "pilot_item_id": "20010508_S005",
         "sentence_text": "앞으로도 물가 및 경기, 금융시장 상황, 대외여건 변화 등을 종합적으로 감안하여 경기회복을 뒷받침하면서도 수요면에서 물가압력이 발생하지 않도록 통화정책을 운용할 것이며 특히 최근의 물가상승세가 일반의 인플레기대심리 확산으로 이어지지 않도록 유의할 것임"
       },
       {
-        "assignment_id": "H5_PILOT_R04_12",
+        "assignment_id": "H6_PILOT_R04_12",
         "pilot_rater_id": "PILOT_R04",
         "display_position": 12,
         "pilot_item_id": "20120608_S005",
@@ -458,84 +458,84 @@
     ],
     "PILOT_R05": [
       {
-        "assignment_id": "H5_PILOT_R05_01",
+        "assignment_id": "H6_PILOT_R05_01",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 1,
         "pilot_item_id": "20240412_S018",
         "sentence_text": "국내경제는 성장세가 개선 흐름을 지속하는 가운데 근원물가 상승률의 둔화 추세가 이어질 것으로 예상되지만 소비자물가 전망과 관련한 불확실성이 높기 때문에 물가가 목표수준으로 수렴할 것으로 확신하기는 아직 이른 상황이다."
       },
       {
-        "assignment_id": "H5_PILOT_R05_02",
+        "assignment_id": "H6_PILOT_R05_02",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 2,
         "pilot_item_id": "20120608_S005",
         "sentence_text": "국내경제를 보면, 수출이 대체로 전년도 수준을 유지하는 가운데 소비와 설비투자가 소폭 증가로 전환하면서 미약하나마 성장세는 이어지고 있다."
       },
       {
-        "assignment_id": "H5_PILOT_R05_03",
+        "assignment_id": "H6_PILOT_R05_03",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 3,
         "pilot_item_id": "20071207_S004",
         "sentence_text": "소비자물가는 고유가의 영향 등으로 상승세가 확대되는 모습을 보이고 있으며 부동산가격은 오름세가 제한되고 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R05_04",
+        "assignment_id": "H6_PILOT_R05_04",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 4,
         "pilot_item_id": "19990304_S002",
         "sentence_text": "다만 엔화 약세 등으로 인한 수출부진 가능성, 기업 구조조정과정에서의 노사갈등 우려 등 대내외 불안요인이 잠재해 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R05_05",
+        "assignment_id": "H6_PILOT_R05_05",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 5,
         "pilot_item_id": "20250116_S019",
         "sentence_text": "국내경제는 물가상승률이 안정적인 흐름을 이어가고 있으나 정치적 리스크 확대로 성장의 하방위험이 증대되고 경제전망의 불확실성도 커진 상황이다."
       },
       {
-        "assignment_id": "H5_PILOT_R05_06",
+        "assignment_id": "H6_PILOT_R05_06",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 6,
         "pilot_item_id": "20010508_S005",
         "sentence_text": "앞으로도 물가 및 경기, 금융시장 상황, 대외여건 변화 등을 종합적으로 감안하여 경기회복을 뒷받침하면서도 수요면에서 물가압력이 발생하지 않도록 통화정책을 운용할 것이며 특히 최근의 물가상승세가 일반의 인플레기대심리 확산으로 이어지지 않도록 유의할 것임"
       },
       {
-        "assignment_id": "H5_PILOT_R05_07",
+        "assignment_id": "H6_PILOT_R05_07",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 7,
         "pilot_item_id": "20090409_S006",
         "sentence_text": "앞으로 통화정책은 당분간 금융완화기조를 유지하면서 경기의 과도한 위축을 방지하고 금융시장 안정을 도모하는 데 주안점을 두고 운용해 나갈 것임"
       },
       {
-        "assignment_id": "H5_PILOT_R05_08",
+        "assignment_id": "H6_PILOT_R05_08",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 8,
         "pilot_item_id": "20111013_S008",
         "sentence_text": "앞으로 농산물가격 하락 및 전년도로부터의 기저효과 등이 물가상승률을 낮추는 요인으로 작용하겠으나, 계속 높게 유지되고 있는 인플레이션 기대심리 등으로 물가상승률의 하락 속도는 완만할 것으로 예상된다."
       },
       {
-        "assignment_id": "H5_PILOT_R05_09",
+        "assignment_id": "H6_PILOT_R05_09",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 9,
         "pilot_item_id": "20060309_S001",
         "sentence_text": "실물경제는 건설투자의 증가가 미약하나 수출이 견실한 증가세를 유지하고 민간소비가 회복세를 지속하는 가운데 설비투자도 증가세를 이어가고 있음"
       },
       {
-        "assignment_id": "H5_PILOT_R05_10",
+        "assignment_id": "H6_PILOT_R05_10",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 10,
         "pilot_item_id": "20150409_S004",
         "sentence_text": "국내경제를 보면, 경제주체들의 심리가 뚜렷이 회복되지 못한 가운데 수출이 석유제품 등의 단가하락 등에 기인하여 감소세를 지속하였으나 소비, 투자 등 내수는 개선되는 모습을 나타내었다."
       },
       {
-        "assignment_id": "H5_PILOT_R05_11",
+        "assignment_id": "H6_PILOT_R05_11",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 11,
         "pilot_item_id": "20260410_S016",
         "sentence_text": "향후 물가경로는 국제유가 및 환율 움직임, 정부 물가안정 대책의 효과, 비용상승의 파급 정도 등과 관련한 불확실성이 매우 높은 상황이다."
       },
       {
-        "assignment_id": "H5_PILOT_R05_12",
+        "assignment_id": "H6_PILOT_R05_12",
         "pilot_rater_id": "PILOT_R05",
         "display_position": 12,
         "pilot_item_id": "20040812_S002",
@@ -544,7 +544,7 @@
     ]
   },
   "source_hashes": {
-    "r5_source": "cf1b678e9e2e340a4313b25261685c59052d7028b4ad85683e63aa581f509def"
+    "r5_source": "6830a16e7673ee847568a1b5a50157e9c9fd302e10bfa06e3307c66fda4c9706"
   },
   "release_source_hashes": {
     "database_pi_manual_test": "63debae33ba265408eddd40c10183aa133dc7546fb476bb21caa31ffdf686ba5",
@@ -557,9 +557,9 @@
     "public_app": "698b2dea8e7fc09c1e6d1e5e22b85ba2d3460f7a761ae925a83faa642fc7a789",
     "public_contract": "c97dff5588ceaf9f769ab955074559de8e1d8dc8eb9ef1da23afa2930414b360",
     "public_index": "346fefee93dab4f062a3bfa99034f4e5ebb629b3eb870cb84b9a36224e4fad14",
-    "public_privacy": "264ac4fc39207ea8eccf94987c8e3acdbfb53fbeb07dd7bf5edc7ac81f4582ed",
+    "public_privacy": "9038caa015f0dcd9005b32e9ea1711af8b1f3746b411e5c39ae55ddae0d1f819",
     "public_styles": "ea23e22cf0f2adf2e0707fa84e2e2f92efe73d231ea6ebc6d379b37813a80580",
-    "r5_source": "cf1b678e9e2e340a4313b25261685c59052d7028b4ad85683e63aa581f509def",
+    "r5_source": "6830a16e7673ee847568a1b5a50157e9c9fd302e10bfa06e3307c66fda4c9706",
     "supabase_config": "62e27b64065d1802c260244e55f068856025ee4dc65a307ca67827ffe8308add"
   }
 }

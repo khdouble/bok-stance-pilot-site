@@ -32,7 +32,7 @@ class FinalizeRemoteE2ETests(unittest.TestCase):
                 {name: "d" * 64 for name in e2e.REMOTE_FILES}
             ),
             "config_override_sha256": "e" * 64,
-            "published_hold_preserved": True,
+            "published_config_unchanged": True,
             "config_intercept_count": 1,
             "browser_asset_count": len(e2e.BROWSER_ASSETS),
             "assignment_count": 12,

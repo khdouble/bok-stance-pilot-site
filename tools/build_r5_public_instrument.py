@@ -138,7 +138,7 @@ def load_source(path: Path) -> dict[str, Any]:
             raise ValueError(f"{assignment_code} must order each R3 core item exactly once")
         assignments[assignment_code] = [
             {
-                "assignment_id": f"H5_{assignment_code}_{position:02d}",
+                "assignment_id": f"H6_{assignment_code}_{position:02d}",
                 "pilot_rater_id": assignment_code,
                 "display_position": position,
                 "pilot_item_id": item_id,

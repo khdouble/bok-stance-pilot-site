@@ -15,7 +15,7 @@ from build_r5_public_instrument import RELEASE_SOURCE_PATHS
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 OUTPUT = DOCS / "deployment-manifest.json"
-TRANSITION = ROOT / "supabase" / "migrations" / "202609080010_activate_r5_h5.sql"
+TRANSITION = ROOT / "supabase" / "migrations" / "202609090011_activate_r5_h6.sql"
 EXPECTED_ORIGIN = "https://khdouble.github.io"
 EXPECTED_PATH = "/bok-stance-pilot-site/"
 EXPECTED_API = "https://mebisrsvasrzwkmsodsw.supabase.co/functions/v1/pilot-api"
@@ -48,7 +48,7 @@ def load_instrument() -> dict[str, object]:
     declared = instrument.pop("instrument_sha256", "")
     if not isinstance(declared, str) or declared != digest(canonical_json(instrument)):
         raise ValueError("instrument self digest is invalid")
-    if instrument.get("hosted_version") != "v260908-r5-public-1":
+    if instrument.get("hosted_version") != "v260909-r5-public-2":
         raise ValueError("instrument is not the expected R5 version")
     if instrument.get("dataset_role") != "r3_content_response_pilot" or instrument.get("excluded_from_analysis") is not True:
         raise ValueError("R5 pilot-only analysis boundary changed")
@@ -74,8 +74,8 @@ def build(state: str) -> dict[str, object]:
     if state == "live" and (not enabled or not direct):
         raise ValueError("R5 live requires fieldingEnabled=true and directEntryEnabled=true")
     migration = TRANSITION.read_text(encoding="utf-8")
-    if instrument["instrument_sha256"] not in migration or "4a8d23b10cc1f6e5a2234b2487ffc4c738b43301677d89302408be463e80f153" not in migration:
-        raise ValueError("R5 transition migration is not bound to H4 and H5")
+    if instrument["instrument_sha256"] not in migration or "128bd0818eb511c79aceedca316f151008dce566849b19aa8ec8eaa5307f5e30" not in migration:
+        raise ValueError("R5 transition migration is not bound to H5 and H6")
     payload = {
         "schema_version": "1.0",
         "deployment_state": state,

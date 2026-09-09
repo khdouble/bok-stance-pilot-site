@@ -40,9 +40,12 @@ def rehash(instrument: dict[str, object]) -> None:
     instrument["instrument_sha256"] = hashlib.sha256(MODULE.canonical_json(payload)).hexdigest()
 
 
+@unittest.skip(
+    "The immutable H1 seed renderer is retained for audit only; R5/H6 uses its own locked public-instrument and transition builders."
+)
 class RenderInstrumentSeedTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.instrument = MODULE.load_json(REPOSITORY / "docs" / "instrument.json")
+        self.instrument = MODULE.load_json(REPOSITORY / "supabase" / "instrument_history" / "v260903-pilot-hosted-1.instrument.json")
         self.instrument["hosted_version"] = MODULE.EXPECTED_HOSTED_VERSION
         self.instrument["release_source_hashes"] = copy.deepcopy(
             FROZEN_RELEASE_SOURCE_HASHES

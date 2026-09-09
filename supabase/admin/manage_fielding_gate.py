@@ -41,13 +41,13 @@ ACTIONS = (
 DIRECT_BACKEND = "direct"
 LINKED_CLI_BACKEND = "linked-cli"
 DB_BACKENDS = (DIRECT_BACKEND, LINKED_CLI_BACKEND)
-EXPECTED_HOSTED_VERSION = "v260903-pilot-hosted-2"
+EXPECTED_HOSTED_VERSION = "v260909-r5-public-2"
 EXPECTED_SITE_URL = "https://khdouble.github.io/bok-stance-pilot-site/"
 EXPECTED_API_URL = (
     "https://mebisrsvasrzwkmsodsw.supabase.co/functions/v1/pilot-api"
 )
 TRANSITION_MIGRATION_RELATIVE = Path(
-    "supabase/migrations/202609030005_activate_hosted_instrument_v2.sql"
+    "supabase/migrations/202609090011_activate_r5_h6.sql"
 )
 EXPECTED_MANIFEST_KEYS = frozenset(
     {
@@ -584,7 +584,7 @@ def local_instrument_version(
         or payload.get("instrument_sha256") != instrument_sha256
         or not isinstance(version, str)
         or not re.fullmatch(
-            r"^v[0-9]{6}-pilot-hosted-[1-9][0-9]*$", version
+            r"^v[0-9]{6}-(?:pilot-hosted|r5-public)-[1-9][0-9]*$", version
         )
     ):
         raise GateError("local instrument identity is invalid")

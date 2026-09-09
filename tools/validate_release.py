@@ -1,569 +1,186 @@
 #!/usr/bin/env python3
-"""Fail-closed static validation for the public hosted pilot repository."""
+"""Validate the active R5 public release before deployment or fielding."""
 
 from __future__ import annotations
 
 import argparse
-import csv
 import hashlib
 import json
-import re
+import sys
+import tempfile
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from build_public_instrument import HOSTED_VERSION, RELEASE_SOURCE_PATHS
-from pi_config import (
-    boolean_value,
-    has_placeholder,
-    parse_pi_values,
-    validate_live_config,
-)
-from render_instrument_transition import (
-    BASELINE_SEED_RELATIVE,
-    BASELINE_SEED_SHA256,
-    CURRENT_INSTRUMENT_RELATIVE,
-    PREVIOUS_HOSTED_VERSION,
-    PREVIOUS_INSTRUMENT_RELATIVE,
-    PREVIOUS_INSTRUMENT_SHA256,
-    TRANSITION_MIGRATION_RELATIVE,
-    load_json as load_unique_json,
-    render_sql as render_transition_sql,
-    validate_transition,
-)
 
-EXPECTED_API_URL = (
-    "https://mebisrsvasrzwkmsodsw.supabase.co/functions/v1/pilot-api"
-)
-EXPECTED_ORIGIN = "https://khdouble.github.io"
-FORBIDDEN_PAYLOAD_MARKERS = {
-    "intended_label",
-    "intended_abstain",
-    "intended_reason_code",
-    "construct",
-    "facilitator_rationale",
-    "clarity_band",
-}
-SECRET_PATTERNS = {
-    "Supabase secret key": re.compile(r"sb_secret_[A-Za-z0-9_-]{12,}"),
-    "GitHub personal access token": re.compile(
-        r"(?:ghp|github_pat)_[A-Za-z0-9_]{12,}"
-    ),
-    "JWT-like credential": re.compile(
-        r"eyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}"
-    ),
-    "Postgres credential URL": re.compile(
-        r"postgres(?:ql)?://[^:\s]+:[^@\s]+@", re.IGNORECASE
-    ),
-}
+@dataclass(frozen=True)
+class Check:
+    check: str
+    passed: bool
+    detail: str
 
 
-def canonical_json(value: object) -> bytes:
-    return json.dumps(
-        value,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
+@dataclass
+class ValidationResult:
+    checks: list[Check]
+
+    @property
+    def failures(self) -> list[dict[str, object]]:
+        return [
+            {"check": item.check, "passed": item.passed, "detail": item.detail}
+            for item in self.checks
+            if not item.passed
+        ]
 
 
-def sha256_bytes(value: bytes) -> str:
+def _canonical_json(value: object) -> bytes:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def _digest(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
-def sha256_file(path: Path) -> str:
-    return sha256_bytes(path.read_bytes())
+def _unique_object(path: Path) -> dict[str, Any]:
+    def reject(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate JSON key")
+            result[key] = value
+        return result
+
+    value = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=reject)
+    if not isinstance(value, dict):
+        raise ValueError("JSON root is not an object")
+    return value
 
 
-class Validation:
-    def __init__(self) -> None:
-        self.checks: list[dict[str, Any]] = []
+def validate(
+    repository_root: Path,
+    _legacy_source_pilot: Path | None = None,
+    expected_fielding: str = "live",
+) -> ValidationResult:
+    """Validate the active R5 release; the legacy source argument is ignored."""
+    checks: list[Check] = []
 
-    def check(self, name: str, condition: bool, detail: str) -> None:
-        self.checks.append(
-            {"check": name, "passed": bool(condition), "detail": detail}
-        )
+    def check(name: str, passed: bool, detail: str) -> None:
+        checks.append(Check(name, passed, detail))
 
-    @property
-    def failures(self) -> list[dict[str, Any]]:
-        return [item for item in self.checks if not item["passed"]]
-
-
-def public_files(root: Path) -> list[Path]:
-    ignored_parts = {".git", "__pycache__", ".private", "responses", "exports"}
-    return sorted(
-        path
-        for path in root.rglob("*")
-        if path.is_file() and not any(part in ignored_parts for part in path.parts)
-    )
-
-
-def load_source_assignments(source_pilot: Path) -> dict[str, list[dict[str, object]]]:
-    columns = [
-        "assignment_id",
-        "pilot_rater_id",
-        "display_position",
-        "pilot_item_id",
-        "sentence_text",
-    ]
-    result: dict[str, list[dict[str, object]]] = {}
-    with (source_pilot / "response_template.csv").open(
-        "r", encoding="utf-8-sig", newline=""
-    ) as handle:
-        for raw in csv.DictReader(handle):
-            row: dict[str, object] = {
-                "assignment_id": raw["assignment_id"],
-                "pilot_rater_id": raw["pilot_rater_id"],
-                "display_position": int(raw["display_position"]),
-                "pilot_item_id": raw["pilot_item_id"],
-                "sentence_text": raw["sentence_text"],
-            }
-            if list(row) != columns:
-                raise AssertionError("payload column order changed")
-            result.setdefault(raw["pilot_rater_id"], []).append(row)
-    for rows in result.values():
-        rows.sort(key=lambda row: int(row["display_position"]))
-    return result
-
-
-def validate(root: Path, source_pilot: Path, expected_fielding: str) -> Validation:
-    validation = Validation()
-    docs = root / "docs"
-    instrument_path = docs / "instrument.json"
-    config_path = docs / "site-config.js"
-    index_path = docs / "index.html"
-    admin_page_path = docs / "admin.html"
-    admin_bridge_path = docs / "admin.js"
-    app_path = docs / "app.js"
-    contract_path = docs / "submission-contract.js"
-    privacy_path = docs / "privacy.html"
-    required = [
-        instrument_path,
-        docs / "instrument-hash.js",
-        config_path,
-        index_path,
-        admin_page_path,
-        admin_bridge_path,
-        app_path,
-        contract_path,
-        docs / "styles.css",
-        privacy_path,
-        docs / "404.html",
-        docs / ".nojekyll",
-        docs / "deployment-manifest.json",
-        root / ".gitignore",
-        root / "supabase" / "config.toml",
-        root / "supabase" / "functions" / "pilot-api" / "index.ts",
-        root / "supabase" / "functions" / "pilot-api" / "_shared" / "core.ts",
-        root / "supabase" / "migrations" / "202609030001_pilot_backend.sql",
-        root / BASELINE_SEED_RELATIVE,
-        root / "supabase" / "migrations" / "202609030003_pilot_withdrawal_audit.sql",
-        root / "supabase" / "migrations" / "202609030004_pi_manual_test_credentials.sql",
-        root / TRANSITION_MIGRATION_RELATIVE,
-        root / PREVIOUS_INSTRUMENT_RELATIVE,
-    ]
-    validation.check(
-        "required_public_files",
-        all(path.is_file() for path in required),
-        ", ".join(str(path.relative_to(root)) for path in required),
-    )
-    if validation.failures:
-        return validation
-
+    root = repository_root.resolve()
+    if expected_fielding not in {"live", "staging"}:
+        check("requested_state", False, "expected fielding must be live or staging")
+        return ValidationResult(checks)
+    tools_path = root / "tools"
+    if str(tools_path) not in sys.path:
+        sys.path.insert(0, str(tools_path))
     try:
-        instrument_document = load_unique_json(instrument_path)
-    except ValueError:
-        validation.check(
-            "instrument_json_unique",
-            False,
-            "instrument must be one unique-key UTF-8 JSON object",
-        )
-        return validation
-    validation.check(
-        "instrument_json_unique",
-        True,
-        "instrument is one unique-key UTF-8 JSON object",
-    )
-    instrument = dict(instrument_document)
-    declared_hash = instrument.pop("instrument_sha256", "")
-    calculated_hash = sha256_bytes(canonical_json(instrument))
-    hash_js = (docs / "instrument-hash.js").read_text(encoding="utf-8")
-    validation.check(
-        "instrument_sha256",
-        bool(re.fullmatch(r"[0-9a-f]{64}", declared_hash))
-        and declared_hash == calculated_hash
-        and declared_hash in hash_js,
-        f"declared={declared_hash} calculated={calculated_hash}",
-    )
-    validation.check(
-        "hosted_parent_distinct",
-        declared_hash != instrument.get("source_offline_instrument_sha256")
-        and instrument.get("hosted_version") == HOSTED_VERSION,
-        (
-            f"hosted={declared_hash} "
-            f"parent={instrument.get('source_offline_instrument_sha256')}"
-        ),
-    )
-    validation.check(
-        "analysis_exclusion",
-        instrument.get("dataset_role") == "synthetic_usability_pilot"
-        and instrument.get("excluded_from_analysis") is True
-        and instrument.get("analysis_exclusion_reason")
-        == "synthetic_usability_only_never_analysis",
-        "synthetic pilot must remain excluded",
-    )
+        import build_r5_deployment_manifest as deployment
+        import build_r5_public_instrument as instrument_builder
+        import pi_config
+    except ImportError as exc:
+        check("r5_tools_import", False, type(exc).__name__)
+        return ValidationResult(checks)
 
-    assignments = instrument.get("assignments", {})
-    expected_raters = [f"PILOT_R{index:02d}" for index in range(1, 6)]
-    assignment_shape = (
-        sorted(assignments) == expected_raters
-        and all(len(assignments[rater]) == 12 for rater in expected_raters)
-        and all(
-            [row["display_position"] for row in assignments[rater]]
-            == list(range(1, 13))
-            for rater in expected_raters
-        )
+    required = (
+        "index.html", "privacy.html", "app.js", "site-config.js",
+        "instrument.json", "instrument-hash.js", "deployment-manifest.json",
     )
-    validation.check(
-        "assignment_shape",
-        assignment_shape,
-        f"raters={sorted(assignments)}",
-    )
-    all_rows = [row for rows in assignments.values() for row in rows]
-    validation.check(
-        "assignment_uniqueness",
-        len(all_rows) == 60
-        and len({row["assignment_id"] for row in all_rows}) == 60
-        and all(
-            len({row["pilot_item_id"] for row in assignments[rater]}) == 12
-            for rater in expected_raters
-        ),
-        f"rows={len(all_rows)}",
-    )
-    payload_text = json.dumps(instrument, ensure_ascii=False).lower()
-    validation.check(
-        "facilitator_key_absent",
-        not any(marker in payload_text for marker in FORBIDDEN_PAYLOAD_MARKERS),
-        "participant payload contains no intended answer or rationale fields",
-    )
+    missing = [name for name in required if not (root / "docs" / name).is_file()]
+    check("required_public_files", not missing, ", ".join(missing) or "present")
+    if missing or root != instrument_builder.REPO_ROOT.resolve():
+        if root != instrument_builder.REPO_ROOT.resolve():
+            check("repository_root", False, "R5 builders are not loaded from the requested repository")
+        return ValidationResult(checks)
 
-    source_assignments = load_source_assignments(source_pilot)
-    validation.check(
-        "frozen_source_assignment_exact",
-        assignments == source_assignments,
-        "public rows equal frozen response_template rows and order",
-    )
-    source_hashes = instrument.get("source_hashes", {})
-    source_paths = {
-        "response_template": source_pilot / "response_template.csv",
-        "participant_items": source_pilot / "participant_items.csv",
-        "pilot_fieldwork_config": source_pilot / "pilot_fieldwork_config.json",
-        "pilot_protocol": source_pilot / "pilot_protocol.md",
-        "parent_manifest": source_pilot / "fieldwork" / "manifest.json",
-    }
-    source_hash_ok = all(
-        source_hashes.get(key) == sha256_file(path)
-        for key, path in source_paths.items()
-    )
-    validation.check(
-        "frozen_source_hashes",
-        source_hash_ok,
-        f"sources={sorted(source_paths)}",
-    )
-    release_hashes = instrument.get("release_source_hashes", {})
-    expected_release_paths = {
-        name: root / relative
-        for name, relative in RELEASE_SOURCE_PATHS.items()
-    }
-    release_hash_ok = (
-        sorted(release_hashes) == sorted(expected_release_paths)
-        and all(
-            release_hashes.get(name) == sha256_file(path)
-            for name, path in expected_release_paths.items()
-        )
-    )
-    validation.check(
-        "release_source_hashes",
-        release_hash_ok,
-        f"sources={sorted(expected_release_paths)}",
-    )
-
-    config_text = config_path.read_text(encoding="utf-8")
-    index_text = index_path.read_text(encoding="utf-8")
-    admin_page_text = admin_page_path.read_text(encoding="utf-8")
-    admin_bridge_text = admin_bridge_path.read_text(encoding="utf-8")
-    app_text = app_path.read_text(encoding="utf-8")
-    contract_text = contract_path.read_text(encoding="utf-8")
-    privacy_text = privacy_path.read_text(encoding="utf-8")
-    validation.check(
-        "api_and_origin_exact",
-        EXPECTED_API_URL in config_text
-        and EXPECTED_API_URL.rsplit("/functions/", 1)[0] in index_text
-        and EXPECTED_ORIGIN in config_text,
-        "configured GitHub origin and Supabase function endpoint",
-    )
-    admin_csp_match = re.search(
-        r'<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"',
-        admin_page_text,
-    )
-    admin_csp = admin_csp_match.group(1) if admin_csp_match else ""
-    validation.check(
-        "admin_surface_pinned_and_isolated",
-        'data-pilot-mode="admin"' in admin_page_text
-        and 'src="admin.js"' in admin_page_text
-        and admin_page_text.index('src="admin.js"')
-        < admin_page_text.index('src="app.js"')
-        and "admin.js" not in index_text
-        and EXPECTED_API_URL in admin_bridge_text
-        and "default-src 'none'" in admin_csp
-        and "connect-src 'self' "
-        + EXPECTED_API_URL.rsplit("/functions/", 1)[0]
-        in admin_csp
-        and "base-uri 'none'" in admin_csp
-        and "form-action 'none'" in admin_csp
-        and not re.search(r"<script(?!\s+src=)[^>]*>", admin_page_text),
-        "admin page, bridge, API endpoint, and CSP are exact and isolated",
-    )
-    csp_match = re.search(
-        r'<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"',
-        index_text,
-    )
-    csp = csp_match.group(1) if csp_match else ""
-    validation.check(
-        "strict_csp",
-        bool(csp)
-        and "connect-src 'self' " + EXPECTED_API_URL.rsplit("/functions/", 1)[0]
-        in csp
-        and "'unsafe-inline'" not in csp
-        and "'unsafe-eval'" not in csp
-        and "form-action 'none'" in csp,
-        csp,
-    )
-    inline_scripts = re.findall(
-        r"<script(?![^>]*\bsrc=)[^>]*>.*?</script>",
-        index_text,
-        flags=re.IGNORECASE | re.DOTALL,
-    )
-    validation.check(
-        "no_inline_script",
-        not inline_scripts,
-        f"inline_script_blocks={len(inline_scripts)}",
-    )
-    validation.check(
-        "no_default_response",
-        not re.search(r"<input[^>]+\bchecked\b", index_text, re.IGNORECASE)
-        and '<option value=""' in index_text,
-        "no radio, checkbox or select answer is preselected",
-    )
-    validation.check(
-        "pii_not_persisted_client_side",
-        "JSON.stringify({ saved_at: nowIso(), state: state })" in app_text
-        and "state.identity" not in app_text
-        and "state.name" not in app_text
-        and "state.phone" not in app_text
-        and "client_user_agent" not in app_text
-        and "navigator.userAgent" not in app_text,
-        "TTL local draft and fallback exports exclude identity and user-agent",
-    )
-    validation.check(
-        "invite_fragment_removed",
-        "history.replaceState" in app_text
-        and "sessionStorage" not in app_text
-        and "localStorage.setItem" in app_text
-        and r"/^[A-Za-z0-9_-]{43}$/" in app_text,
-        "raw invite is removed from URL and retained in memory only",
-    )
-    validation.check(
-        "draft_retention_and_deletion",
-        "DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000" in app_text
-        and "purgeExpiredDrafts" in app_text
-        and 'byId("clearDraft")' in app_text
-        and "7일 동안만 복원" in privacy_text,
-        "stale drafts are purged on access and have an explicit deletion control",
-    )
-    validation.check(
-        "submit_contract_alignment",
-        "CONTRACT.finalizeDigest" in app_text
-        and "payload_sha256: finalized.payload_sha256" in app_text
-        and "result.receipt.submission_id" in app_text
-        and "toFixed(3)" not in app_text
-        and "normalizeDigestBasis" in contract_text
-        and "stableStringify" in contract_text,
-        "normalized canonical digest, integer timing, and receipt envelope",
-    )
-    validation.check(
-        "pii_notice_present",
-        all(
-            phrase in privacy_text
-            for phrase in ("수집 목적", "수집 항목", "보유기간", "동의 거부")
-        ),
-        "privacy notice contains mandatory headings",
-    )
-
-    baseline_seed_path = root / BASELINE_SEED_RELATIVE
-    baseline_seed_bytes = baseline_seed_path.read_bytes()
-    baseline_seed_text = baseline_seed_bytes.decode("utf-8")
-    validation.check(
-        "immutable_baseline_seed",
-        sha256_bytes(baseline_seed_bytes) == BASELINE_SEED_SHA256
-        and PREVIOUS_INSTRUMENT_SHA256 in baseline_seed_text
-        and PREVIOUS_HOSTED_VERSION in baseline_seed_text,
-        f"path={BASELINE_SEED_RELATIVE.as_posix()}",
-    )
-    transition_path = root / TRANSITION_MIGRATION_RELATIVE
+    instrument_path = root / "docs" / "instrument.json"
     try:
-        previous_instrument = load_unique_json(root / PREVIOUS_INSTRUMENT_RELATIVE)
-        transition_contract = validate_transition(
-            previous_instrument,
-            instrument_document,
-            root,
-        )
-        expected_transition = render_transition_sql(
-            transition_contract,
-            PREVIOUS_INSTRUMENT_RELATIVE,
-            CURRENT_INSTRUMENT_RELATIVE,
-        ).encode("utf-8")
-        actual_transition = transition_path.read_bytes()
-        transition_ok = actual_transition == expected_transition
-    except (OSError, UnicodeError, ValueError):
-        transition_ok = False
-    validation.check(
-        "instrument_transition_lineage",
-        transition_ok,
-        f"path={TRANSITION_MIGRATION_RELATIVE.as_posix()} current={declared_hash}",
-    )
+        instrument = _unique_object(instrument_path)
+        declared = instrument.pop("instrument_sha256")
+        digest_ok = isinstance(declared, str) and declared == _digest(_canonical_json(instrument))
+        instrument["instrument_sha256"] = declared
+    except (OSError, UnicodeError, ValueError, json.JSONDecodeError, KeyError) as exc:
+        instrument = {}
+        declared = ""
+        digest_ok = False
+        check("instrument_self_digest", False, type(exc).__name__)
+    else:
+        check("instrument_self_digest", digest_ok, "canonical SHA-256")
 
-    try:
-        enabled = boolean_value(config_text, "fieldingEnabled")
-        parse_pi_values(config_text)
-        pending = has_placeholder(config_text, privacy_text)
-        pi_errors = validate_live_config(config_text, privacy_text)
-        if expected_fielding == "staging":
-            fielding_ok = not enabled and (pending or not pi_errors)
-        else:
-            fielding_ok = enabled and not pending and not pi_errors
-    except ValueError as error:
-        enabled = False
-        pending = True
-        pi_errors = [str(error)]
-        fielding_ok = False
-    validation.check(
-        "fielding_gate",
-        fielding_ok,
-        (
-            f"expected={expected_fielding} enabled={enabled} "
-            f"pending={pending} errors={pi_errors}"
-        ),
-    )
-    deployment_path = docs / "deployment-manifest.json"
-    try:
-        deployment = load_unique_json(deployment_path)
-    except ValueError:
-        deployment = {}
-    deployment_hash = deployment.pop("deployment_manifest_sha256", "")
-    deployment_files = {
-        "privacy_notice": privacy_path,
-        "site_config": config_path,
-    }
-    deployment_ok = (
-        set(deployment)
-        == {
-            "schema_version",
-            "deployment_state",
-            "site_url",
-            "api_url",
-            "hosted_version",
-            "instrument_sha256",
-            "operational_file_hashes",
-            "deployment_source_hashes",
+    if instrument:
+        expected_sources = {
+            name: _digest((root / relative).read_bytes())
+            for name, relative in instrument_builder.RELEASE_SOURCE_PATHS.items()
         }
-        and deployment.get("schema_version") == "1.0"
-        and deployment_hash == sha256_bytes(canonical_json(deployment))
-        and deployment.get("deployment_state") == expected_fielding
-        and deployment.get("instrument_sha256") == declared_hash
-        and deployment.get("hosted_version") == instrument.get("hosted_version")
-        and deployment.get("site_url")
-        == "https://khdouble.github.io/bok-stance-pilot-site/"
-        and deployment.get("api_url") == EXPECTED_API_URL
-        and deployment.get("operational_file_hashes")
-        == {
-            name: sha256_file(path)
-            for name, path in sorted(deployment_files.items())
-        }
-        and deployment.get("deployment_source_hashes")
-        == {
-            "database_instrument_transition": sha256_file(transition_path)
-        }
-    )
-    validation.check(
-        "deployment_manifest",
-        deployment_ok,
-        f"state={expected_fielding} hash={deployment_hash}",
-    )
-
-    secret_hits: list[str] = []
-    for path in public_files(root):
-        if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".ico"}:
-            continue
-        text = path.read_text(encoding="utf-8", errors="ignore")
-        for name, pattern in SECRET_PATTERNS.items():
-            if pattern.search(text):
-                secret_hits.append(f"{path.relative_to(root)}:{name}")
-    validation.check(
-        "secret_scan",
-        not secret_hits,
-        "none" if not secret_hits else ", ".join(secret_hits),
-    )
-    forbidden_names = [
-        path
-        for path in public_files(root)
-        if any(
-            marker in path.name.lower()
-            for marker in ("facilitator_key", "response_export", "private_roster")
+        check(
+            "release_source_hashes",
+            instrument.get("release_source_hashes") == expected_sources,
+            "R5 source-map attestation",
         )
-    ]
-    validation.check(
-        "forbidden_files_absent",
-        not forbidden_names,
-        "none"
-        if not forbidden_names
-        else ", ".join(str(path.relative_to(root)) for path in forbidden_names),
-    )
-    return validation
+        check(
+            "r5_identity",
+            instrument.get("hosted_version") == "v260909-r5-public-2"
+            and instrument.get("dataset_role") == "r3_content_response_pilot"
+            and instrument.get("excluded_from_analysis") is True
+            and instrument.get("analysis_exclusion_reason") == "r3_repilot_never_analysis",
+            "version and pilot-only boundary",
+        )
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                temporary = Path(directory)
+                old_hash_path = instrument_builder.HASH_JS_PATH
+                instrument_builder.HASH_JS_PATH = temporary / "instrument-hash.js"
+                try:
+                    rebuilt = instrument_builder.build(
+                        root / "instrument_sources" / "r5_20260908.json",
+                        temporary / "instrument.json",
+                    )
+                finally:
+                    instrument_builder.HASH_JS_PATH = old_hash_path
+                check(
+                    "instrument_rebuild",
+                    rebuilt == instrument and (temporary / "instrument.json").read_bytes() == instrument_path.read_bytes(),
+                    "deterministic R5 build",
+                )
+        except (OSError, ValueError, TypeError) as exc:
+            check("instrument_rebuild", False, type(exc).__name__)
+
+    config_path = root / "docs" / "site-config.js"
+    privacy_path = root / "docs" / "privacy.html"
+    try:
+        config = config_path.read_text(encoding="utf-8")
+        privacy = privacy_path.read_text(encoding="utf-8")
+        errors = pi_config.validate_live_config(
+            config, privacy, today=datetime.now(timezone.utc).date(), now=datetime.now(timezone.utc)
+        )
+        check("live_governance_config", not errors, "; ".join(errors) or "valid")
+    except (OSError, UnicodeError, ValueError) as exc:
+        check("live_governance_config", False, type(exc).__name__)
+
+    try:
+        expected_manifest = deployment.build(expected_fielding)
+        actual_manifest = _unique_object(root / "docs" / "deployment-manifest.json")
+        check(
+            "deployment_manifest",
+            actual_manifest == expected_manifest,
+            f"state={expected_fielding}",
+        )
+    except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
+        check("deployment_manifest", False, type(exc).__name__)
+
+    return ValidationResult(checks)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--source-pilot", type=Path, required=True)
-    parser.add_argument(
-        "--expect-fielding",
-        choices=("staging", "live"),
-        default="staging",
-    )
-    parser.add_argument("--json-report", type=Path)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repository", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--expect-fielding", choices=("live", "staging"), default="live")
     args = parser.parse_args()
-    root = Path(__file__).resolve().parents[1]
-    result = validate(root, args.source_pilot.resolve(), args.expect_fielding)
-    if args.json_report:
-        args.json_report.write_text(
-            json.dumps(
-                {
-                    "status": "PASS" if not result.failures else "FAIL",
-                    "checks": result.checks,
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-    status = "PASS" if not result.failures else "FAIL"
-    print(
-        f"[{status}] checks={len(result.checks)} "
-        f"failures={len(result.failures)}"
-    )
-    for failure in result.failures:
-        print(f"[FAIL] {failure['check']}: {failure['detail']}")
-    return 0 if not result.failures else 1
+    result = validate(args.repository, expected_fielding=args.expect_fielding)
+    for item in result.checks:
+        print(f"{'PASS' if item.passed else 'FAIL'}: {item.check} — {item.detail}")
+    return 1 if result.failures else 0
 
 
 if __name__ == "__main__":

@@ -641,15 +641,14 @@ class ManageFieldingGateTest(unittest.TestCase):
             stderr.getvalue(),
         )
 
-    def test_current_staging_release_cannot_open_production(self) -> None:
+    def test_current_live_release_is_accepted_for_production(self) -> None:
         repository = SCRIPT.resolve().parents[2]
         current_hash = MODULE.json.loads(
             (repository / "docs" / "instrument.json").read_text(
                 encoding="utf-8"
             )
         )["instrument_sha256"]
-        with self.assertRaisesRegex(MODULE.GateError, "not a validated live"):
-            MODULE.assert_local_live_release(repository, current_hash)
+        MODULE.assert_local_live_release(repository, current_hash)
 
     def test_exact_live_release_manifest_is_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
