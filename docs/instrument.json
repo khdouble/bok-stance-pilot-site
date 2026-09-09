@@ -1,7 +1,7 @@
 {
-  "instrument_sha256": "48170d68a8b2801be43731d94e43c0b8ba1c8194f45823519e1a33894ce7f3fa",
+  "instrument_sha256": "b18cb9a6e1cb15acac1432494de76bf6bdf406fd7c02b0e4b1f3277fd61faab7",
   "schema_version": "1.0",
-  "hosted_version": "v260909-r5-public-2",
+  "hosted_version": "v260910-r5-public-3",
   "source_offline_instrument_sha256": "de96c00e9f95a9035cfc54a1bf18cc0d24b3465f7b5edc05cd9669a3fbfa7dee",
   "dataset_role": "r3_content_response_pilot",
   "excluded_from_analysis": true,
@@ -544,7 +544,7 @@
     ]
   },
   "source_hashes": {
-    "r5_source": "6830a16e7673ee847568a1b5a50157e9c9fd302e10bfa06e3307c66fda4c9706"
+    "r5_source": "5e84b5fcaeb2cfd86ed35103aeb9e76c6695cc493da42769c37d77d7d4dc7241"
   },
   "release_source_hashes": {
     "database_pi_manual_test": "63debae33ba265408eddd40c10183aa133dc7546fb476bb21caa31ffdf686ba5",
@@ -559,7 +559,7 @@
     "public_index": "c1394e444e3afc9c851d799c06e943fc01a9d5584daf636af0cb2952cde10bb2",
     "public_privacy": "749a3aa78b60a2978ea76196d23148978df0ff1ab702fbd37c7ae22cc4c87086",
     "public_styles": "ea23e22cf0f2adf2e0707fa84e2e2f92efe73d231ea6ebc6d379b37813a80580",
-    "r5_source": "6830a16e7673ee847568a1b5a50157e9c9fd302e10bfa06e3307c66fda4c9706",
+    "r5_source": "5e84b5fcaeb2cfd86ed35103aeb9e76c6695cc493da42769c37d77d7d4dc7241",
     "supabase_config": "62e27b64065d1802c260244e55f068856025ee4dc65a307ca67827ffe8308add"
   }
 }

@@ -48,7 +48,7 @@ def load_instrument() -> dict[str, object]:
     declared = instrument.pop("instrument_sha256", "")
     if not isinstance(declared, str) or declared != digest(canonical_json(instrument)):
         raise ValueError("instrument self digest is invalid")
-    if instrument.get("hosted_version") != "v260909-r5-public-2":
+    if instrument.get("hosted_version") != "v260910-r5-public-3":
         raise ValueError("instrument is not the expected R5 version")
     if instrument.get("dataset_role") != "r3_content_response_pilot" or instrument.get("excluded_from_analysis") is not True:
         raise ValueError("R5 pilot-only analysis boundary changed")

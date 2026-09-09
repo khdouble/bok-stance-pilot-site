@@ -41,7 +41,7 @@ ACTIONS = (
 DIRECT_BACKEND = "direct"
 LINKED_CLI_BACKEND = "linked-cli"
 DB_BACKENDS = (DIRECT_BACKEND, LINKED_CLI_BACKEND)
-EXPECTED_HOSTED_VERSION = "v260909-r5-public-2"
+EXPECTED_HOSTED_VERSION = "v260910-r5-public-3"
 EXPECTED_SITE_URL = "https://khdouble.github.io/bok-stance-pilot-site/"
 EXPECTED_API_URL = (
     "https://mebisrsvasrzwkmsodsw.supabase.co/functions/v1/pilot-api"

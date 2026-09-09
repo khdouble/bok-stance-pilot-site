@@ -17,7 +17,7 @@ from typing import Any
 
 
 OFFLINE_PARENT_SHA256 = "de96c00e9f95a9035cfc54a1bf18cc0d24b3465f7b5edc05cd9669a3fbfa7dee"
-HOSTED_VERSION = "v260909-r5-public-2"
+HOSTED_VERSION = "v260910-r5-public-3"
 RESPONSE_COUNT = 12
 UUID_V4 = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 HEX_64 = re.compile(r"^[0-9a-f]{64}$")
