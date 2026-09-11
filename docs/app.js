@@ -25,6 +25,8 @@
   var submitFailures = 0;
   var tutorialComplete = false;
   var DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  var PREVIOUS_INSTRUMENT_SHA256 =
+    "b18cb9a6e1cb15acac1432494de76bf6bdf406fd7c02b0e4b1f3277fd61faab7";
 
   function byId(id) {
     return document.getElementById(id);
@@ -429,6 +431,15 @@
     );
   }
 
+  function previousStorageKey() {
+    return (
+      "bok_stance_hosted_pilot_" +
+      PREVIOUS_INSTRUMENT_SHA256 +
+      "_" +
+      assignmentCode
+    );
+  }
+
   function purgeExpiredDrafts() {
     if (ADMIN_MODE) {
       adminMemoryDraft = null;
@@ -532,9 +543,12 @@
       var raw = ADMIN_MODE
         ? adminMemoryDraft
         : window.localStorage.getItem(storageKey());
-      if (!raw) {
-        return freshState();
+      var migratedFromPrevious = false;
+      if (!raw && !ADMIN_MODE) {
+        raw = window.localStorage.getItem(previousStorageKey());
+        migratedFromPrevious = Boolean(raw);
       }
+      if (!raw) return freshState();
       var stored = JSON.parse(raw);
       if (
         !stored ||
@@ -543,15 +557,36 @@
         !Number.isFinite(Date.parse(stored.saved_at)) ||
         Date.now() - Date.parse(stored.saved_at) > DRAFT_TTL_MS
       ) {
-        removeDraft();
+        if (migratedFromPrevious) {
+          window.localStorage.removeItem(previousStorageKey());
+        } else {
+          removeDraft();
+        }
         return freshState();
       }
       var candidate = stored.state;
+      if (migratedFromPrevious && candidate) {
+        candidate.hosted_version = CONFIG.hostedVersion;
+        candidate.instrument_sha256 = instrument.instrument_sha256;
+        candidate.finalized_submission = null;
+        candidate.idempotency_key = crypto.randomUUID();
+      }
       if (!stateShapeValid(candidate)) {
-        removeDraft();
+        if (migratedFromPrevious) {
+          window.localStorage.removeItem(previousStorageKey());
+        } else {
+          removeDraft();
+        }
         return freshState();
       }
       candidate.finalized_submission = candidate.finalized_submission || null;
+      if (migratedFromPrevious) {
+        window.localStorage.setItem(
+          storageKey(),
+          JSON.stringify({ saved_at: stored.saved_at, state: candidate })
+        );
+        window.localStorage.removeItem(previousStorageKey());
+      }
       return candidate;
     } catch (error) {
       return freshState();
@@ -770,14 +805,11 @@
   }
 
   function validateFeedback() {
-    if (![1, 2, 3, 4, 5].includes(state.feedback.fatigue_1to5)) {
-      return "피로도를 선택해 주세요.";
-    }
-    if (!state.feedback.zero_vs_99_explanation) {
-      return "0과 99의 구분 기준을 입력해 주세요.";
-    }
-    if (!state.feedback.change_vs_stance_explanation) {
-      return "정책변화와 기조 유지의 구분 기준을 입력해 주세요.";
+    if (
+      state.feedback.fatigue_1to5 !== null &&
+      ![1, 2, 3, 4, 5].includes(state.feedback.fatigue_1to5)
+    ) {
+      return "피로도 값이 올바르지 않습니다.";
     }
     return "";
   }

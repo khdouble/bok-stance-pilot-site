@@ -1,16 +1,16 @@
 {
-  "deployment_manifest_sha256": "81768283cf5f0e2b875bbaab2d6f14cd860555b425c8d3990b2f57b61d808198",
+  "deployment_manifest_sha256": "20c93a45aa744c3cf4e7fe1b9293ebcd1a05bfd5b0bbf8e10b7e2db9491f4c5d",
   "schema_version": "1.0",
   "deployment_state": "live",
   "site_url": "https://khdouble.github.io/bok-stance-pilot-site/",
   "api_url": "https://mebisrsvasrzwkmsodsw.supabase.co/functions/v1/pilot-api",
-  "hosted_version": "v260910-r5-public-3",
-  "instrument_sha256": "b18cb9a6e1cb15acac1432494de76bf6bdf406fd7c02b0e4b1f3277fd61faab7",
+  "hosted_version": "v260911-r5-public-4",
+  "instrument_sha256": "8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b",
   "operational_file_hashes": {
     "privacy_notice": "749a3aa78b60a2978ea76196d23148978df0ff1ab702fbd37c7ae22cc4c87086",
-    "site_config": "23ddd68b01c8c16fc7e12ef4a8674b5b66936072c2c4af918c3108667dcd98cf"
+    "site_config": "79d262cf2d53448a4706df41a910100c86f402b2089b39c0277798b7bc4918c1"
   },
   "deployment_source_hashes": {
-    "database_instrument_transition": "28202d6119fb96a92a8d9e4450651811fdacf1000a43606231e1ca28da8de0b9"
+    "database_instrument_transition": "8d143a0d12f49b26558caa2c9c47f0bdcc124ef6583c3a2eb0a574f58b1e5f74"
   }
 }

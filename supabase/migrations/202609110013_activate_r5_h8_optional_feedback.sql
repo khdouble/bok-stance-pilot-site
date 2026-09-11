@@ -1,0 +1,186 @@
+-- H8 makes the final usability-feedback page optional without rewriting retained responses.
+-- Append-only H7 -> H8 release transition; all H7 submissions, responses, identities, and invite rows remain unchanged.
+begin;
+set local standard_conforming_strings = on;
+
+lock table research.pilot_instruments in share row exclusive mode;
+lock table research.pilot_items in share row exclusive mode;
+lock table research.pilot_assignment_sets in share row exclusive mode;
+lock table research.pilot_assignments in share row exclusive mode;
+lock table private.pilot_invites in share row exclusive mode;
+lock table private.participant_identity in share row exclusive mode;
+lock table research.pilot_submissions in share row exclusive mode;
+lock table research.pilot_responses in share row exclusive mode;
+
+do $r5_transition_guard$
+begin
+  if exists (
+    select 1 from research.pilot_instruments
+    where fielding_open and instrument_sha256 <> 'b18cb9a6e1cb15acac1432494de76bf6bdf406fd7c02b0e4b1f3277fd61faab7'
+  ) then
+    raise exception 'H8 activation permits only the H7 direct-entry gate';
+  end if;
+  if (select count(*) from research.pilot_instruments where is_active) <> 1
+     or not exists (select 1 from research.pilot_instruments where instrument_sha256 = 'b18cb9a6e1cb15acac1432494de76bf6bdf406fd7c02b0e4b1f3277fd61faab7' and is_active) then
+    raise exception 'H8 activation requires exactly one active H7 baseline';
+  end if;
+  if exists (select 1 from research.pilot_instruments where instrument_sha256 = '8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b') then
+    raise exception 'H8 instrument already exists';
+  end if;
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'research'
+      and table_name = 'pilot_submissions'
+      and column_name = 'fatigue_1to5'
+      and is_nullable = 'NO'
+  ) or not exists (
+    select 1 from pg_constraint
+    where conrelid = 'research.pilot_submissions'::regclass
+      and conname = 'pilot_submissions_feedback_ck'
+  ) then
+    raise exception 'H8 optional-feedback transition requires the H7 feedback schema';
+  end if;
+end;
+$r5_transition_guard$;
+
+alter table research.pilot_submissions
+  drop constraint pilot_submissions_feedback_ck;
+
+alter table research.pilot_submissions
+  alter column fatigue_1to5 drop not null;
+
+alter table research.pilot_submissions
+  add constraint pilot_submissions_feedback_ck check (
+    (fatigue_1to5 is null or fatigue_1to5 between 1 and 5)
+    and char_length(zero_vs_99_explanation) between 0 and 2000
+    and char_length(change_vs_stance_explanation) between 0 and 2000
+    and char_length(ui_error_note) <= 2000
+  );
+insert into research.pilot_instruments (
+  instrument_sha256, instrument_version, source_offline_sha256,
+  expected_response_count, is_active, fielding_open
+) values (
+  '8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'v260911-r5-public-4',
+  'de96c00e9f95a9035cfc54a1bf18cc0d24b3465f7b5edc05cd9669a3fbfa7dee',
+  12, false, false
+);
+
+insert into research.pilot_items (instrument_sha256, pilot_item_id, sentence_text) values
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', '19990304_S002', '다만 엔화 약세 등으로 인한 수출부진 가능성, 기업 구조조정과정에서의 노사갈등 우려 등 대내외 불안요인이 잠재해 있음'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', '20010508_S005', '앞으로도 물가 및 경기, 금융시장 상황, 대외여건 변화 등을 종합적으로 감안하여 경기회복을 뒷받침하면서도 수요면에서 물가압력이 발생하지 않도록 통화정책을 운용할 것이며 특히 최근의 물가상승세가 일반의 인플레기대심리 확산으로 이어지지 않도록 유의할 것임'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', '20040812_S002', '물가면에서는 국제유가 급등 등의 영향으로 상승압력이 높아지고 있으나 내수 저조로 수요압력이 미약하여 근원인플레이션율은 목표범위 내에서 유지되고 있음'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', '20060309_S001', '실물경제는 건설투자의 증가가 미약하나 수출이 견실한 증가세를 유지하고 민간소비가 회복세를 지속하는 가운데 설비투자도 증가세를 이어가고 있음'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', '20071207_S004', '소비자물가는 고유가의 영향 등으로 상승세가 확대되는 모습을 보이고 있으며 부동산가격은 오름세가 제한되고 있음'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', '20090409_S006', '앞으로 통화정책은 당분간 금융완화기조를 유지하면서 경기의 과도한 위축을 방지하고 금융시장 안정을 도모하는 데 주안점을 두고 운용해 나갈 것임'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', '20111013_S008', '앞으로 농산물가격 하락 및 전년도로부터의 기저효과 등이 물가상승률을 낮추는 요인으로 작용하겠으나, 계속 높게 유지되고 있는 인플레이션 기대심리 등으로 물가상승률의 하락 속도는 완만할 것으로 예상된다.'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', '20120608_S005', '국내경제를 보면, 수출이 대체로 전년도 수준을 유지하는 가운데 소비와 설비투자가 소폭 증가로 전환하면서 미약하나마 성장세는 이어지고 있다.'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', '20150409_S004', '국내경제를 보면, 경제주체들의 심리가 뚜렷이 회복되지 못한 가운데 수출이 석유제품 등의 단가하락 등에 기인하여 감소세를 지속하였으나 소비, 투자 등 내수는 개선되는 모습을 나타내었다.'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', '20240412_S018', '국내경제는 성장세가 개선 흐름을 지속하는 가운데 근원물가 상승률의 둔화 추세가 이어질 것으로 예상되지만 소비자물가 전망과 관련한 불확실성이 높기 때문에 물가가 목표수준으로 수렴할 것으로 확신하기는 아직 이른 상황이다.'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', '20250116_S019', '국내경제는 물가상승률이 안정적인 흐름을 이어가고 있으나 정치적 리스크 확대로 성장의 하방위험이 증대되고 경제전망의 불확실성도 커진 상황이다.'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', '20260410_S016', '향후 물가경로는 국제유가 및 환율 움직임, 정부 물가안정 대책의 효과, 비용상승의 파급 정도 등과 관련한 불확실성이 매우 높은 상황이다.');
+
+insert into research.pilot_assignment_sets (instrument_sha256, assignment_code, expected_item_count) values
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R01', 12),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R02', 12),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R03', 12),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R04', 12),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R05', 12);
+
+insert into research.pilot_assignments (
+  instrument_sha256, assignment_code, display_position, pilot_item_id, assignment_id
+) values
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R01', 1, '19990304_S002', 'H8_PILOT_R01_01'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R01', 2, '20010508_S005', 'H8_PILOT_R01_02'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R01', 3, '20040812_S002', 'H8_PILOT_R01_03'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R01', 4, '20060309_S001', 'H8_PILOT_R01_04'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R01', 5, '20071207_S004', 'H8_PILOT_R01_05'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R01', 6, '20090409_S006', 'H8_PILOT_R01_06'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R01', 7, '20111013_S008', 'H8_PILOT_R01_07'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R01', 8, '20120608_S005', 'H8_PILOT_R01_08'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R01', 9, '20150409_S004', 'H8_PILOT_R01_09'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R01', 10, '20250116_S019', 'H8_PILOT_R01_10'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R01', 11, '20240412_S018', 'H8_PILOT_R01_11'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R01', 12, '20260410_S016', 'H8_PILOT_R01_12'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R02', 1, '20060309_S001', 'H8_PILOT_R02_01'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R02', 2, '20250116_S019', 'H8_PILOT_R02_02'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R02', 3, '20010508_S005', 'H8_PILOT_R02_03'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R02', 4, '20240412_S018', 'H8_PILOT_R02_04'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R02', 5, '20120608_S005', 'H8_PILOT_R02_05'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R02', 6, '19990304_S002', 'H8_PILOT_R02_06'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R02', 7, '20260410_S016', 'H8_PILOT_R02_07'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R02', 8, '20040812_S002', 'H8_PILOT_R02_08'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R02', 9, '20150409_S004', 'H8_PILOT_R02_09'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R02', 10, '20071207_S004', 'H8_PILOT_R02_10'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R02', 11, '20111013_S008', 'H8_PILOT_R02_11'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R02', 12, '20090409_S006', 'H8_PILOT_R02_12'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R03', 1, '20111013_S008', 'H8_PILOT_R03_01'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R03', 2, '19990304_S002', 'H8_PILOT_R03_02'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R03', 3, '20240412_S018', 'H8_PILOT_R03_03'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R03', 4, '20071207_S004', 'H8_PILOT_R03_04'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R03', 5, '20120608_S005', 'H8_PILOT_R03_05'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R03', 6, '20040812_S002', 'H8_PILOT_R03_06'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R03', 7, '20260410_S016', 'H8_PILOT_R03_07'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R03', 8, '20010508_S005', 'H8_PILOT_R03_08'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R03', 9, '20250116_S019', 'H8_PILOT_R03_09'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R03', 10, '20060309_S001', 'H8_PILOT_R03_10'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R03', 11, '20090409_S006', 'H8_PILOT_R03_11'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R03', 12, '20150409_S004', 'H8_PILOT_R03_12'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R04', 1, '20150409_S004', 'H8_PILOT_R04_01'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R04', 2, '20090409_S006', 'H8_PILOT_R04_02'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R04', 3, '20060309_S001', 'H8_PILOT_R04_03'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R04', 4, '20260410_S016', 'H8_PILOT_R04_04'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R04', 5, '20040812_S002', 'H8_PILOT_R04_05'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R04', 6, '20111013_S008', 'H8_PILOT_R04_06'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R04', 7, '19990304_S002', 'H8_PILOT_R04_07'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R04', 8, '20250116_S019', 'H8_PILOT_R04_08'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R04', 9, '20071207_S004', 'H8_PILOT_R04_09'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R04', 10, '20240412_S018', 'H8_PILOT_R04_10'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R04', 11, '20010508_S005', 'H8_PILOT_R04_11'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R04', 12, '20120608_S005', 'H8_PILOT_R04_12'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R05', 1, '20240412_S018', 'H8_PILOT_R05_01'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R05', 2, '20120608_S005', 'H8_PILOT_R05_02'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R05', 3, '20071207_S004', 'H8_PILOT_R05_03'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R05', 4, '19990304_S002', 'H8_PILOT_R05_04'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R05', 5, '20250116_S019', 'H8_PILOT_R05_05'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R05', 6, '20010508_S005', 'H8_PILOT_R05_06'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R05', 7, '20090409_S006', 'H8_PILOT_R05_07'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R05', 8, '20111013_S008', 'H8_PILOT_R05_08'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R05', 9, '20060309_S001', 'H8_PILOT_R05_09'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R05', 10, '20150409_S004', 'H8_PILOT_R05_10'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R05', 11, '20260410_S016', 'H8_PILOT_R05_11'),
+  ('8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b', 'PILOT_R05', 12, '20040812_S002', 'H8_PILOT_R05_12');
+
+do $h8_seed_validation$
+begin
+  if (select count(*) from research.pilot_items where instrument_sha256 = '8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b') <> 12
+     or (select count(*) from research.pilot_assignment_sets where instrument_sha256 = '8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b') <> 5
+     or (select count(*) from research.pilot_assignments where instrument_sha256 = '8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b') <> 60 then
+    raise exception 'H8 seed counts are invalid';
+  end if;
+end;
+$h8_seed_validation$;
+
+update research.pilot_instruments
+set is_active = false,
+    fielding_open = false,
+    fielding_closed_at = coalesce(fielding_closed_at, now())
+where instrument_sha256 = 'b18cb9a6e1cb15acac1432494de76bf6bdf406fd7c02b0e4b1f3277fd61faab7' and is_active;
+
+update research.pilot_instruments
+set is_active = true,
+    activated_at = now(),
+    fielding_open = true,
+    fielding_opened_at = now(),
+    fielding_closed_at = null
+where instrument_sha256 = '8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b';
+
+do $h8_activation_validation$
+begin
+  if (select count(*) from research.pilot_instruments where is_active) <> 1
+     or not exists (select 1 from research.pilot_instruments where instrument_sha256 = '8b13c6a63d4fb5261428ac46b5afbfbb8ec56410d377f34494c50fbf21487e2b' and is_active and fielding_open) then
+    raise exception 'H8 did not become the sole active direct-entry instrument';
+  end if;
+end;
+$h8_activation_validation$;
+
+commit;

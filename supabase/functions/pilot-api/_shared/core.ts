@@ -82,7 +82,7 @@ export interface ResponseRecord {
 }
 
 export interface FeedbackRecord {
-  fatigue_1to5: number;
+  fatigue_1to5: number | null;
   zero_vs_99_explanation: string;
   change_vs_stance_explanation: string;
   ui_error_note: string;
@@ -453,9 +453,11 @@ export function validateSubmitRequest(
     "change_vs_stance_explanation",
   ], ["ui_error_note"], "feedback");
   const feedback: FeedbackRecord = {
-    fatigue_1to5: integerValue(feedbackInput.fatigue_1to5, "feedback.fatigue_1to5", 1, 5),
-    zero_vs_99_explanation: textValue(feedbackInput.zero_vs_99_explanation, "feedback.zero_vs_99_explanation", 1, 2000),
-    change_vs_stance_explanation: textValue(feedbackInput.change_vs_stance_explanation, "feedback.change_vs_stance_explanation", 1, 2000),
+    fatigue_1to5: feedbackInput.fatigue_1to5 === null
+      ? null
+      : integerValue(feedbackInput.fatigue_1to5, "feedback.fatigue_1to5", 1, 5),
+    zero_vs_99_explanation: textValue(feedbackInput.zero_vs_99_explanation, "feedback.zero_vs_99_explanation", 0, 2000),
+    change_vs_stance_explanation: textValue(feedbackInput.change_vs_stance_explanation, "feedback.change_vs_stance_explanation", 0, 2000),
     ui_error_note: feedbackInput.ui_error_note === undefined
       ? ""
       : textValue(feedbackInput.ui_error_note, "feedback.ui_error_note", 0, 2000),

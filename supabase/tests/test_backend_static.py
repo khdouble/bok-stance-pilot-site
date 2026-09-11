@@ -15,6 +15,11 @@ PI_MIGRATION = (
     / 'migrations'
     / '202609030004_pi_manual_test_credentials.sql'
 )
+OPTIONAL_FEEDBACK_MIGRATION = (
+    SUPABASE
+    / "migrations"
+    / "202609110013_activate_r5_h8_optional_feedback.sql"
+)
 EDGE = SUPABASE / "functions" / "pilot-api" / "index.ts"
 CORE = SUPABASE / "functions" / "pilot-api" / "_shared" / "core.ts"
 CONFIG = SUPABASE / "config.toml"
@@ -22,6 +27,23 @@ RUNBOOK = SUPABASE / "README.md"
 
 
 class BackendStaticTest(unittest.TestCase):
+    def test_h8_optional_feedback_preserves_existing_research_rows(self) -> None:
+        migration = OPTIONAL_FEEDBACK_MIGRATION.read_text(encoding="utf-8").lower()
+        self.assertIn("alter column fatigue_1to5 drop not null", migration)
+        self.assertIn("fatigue_1to5 is null or fatigue_1to5 between 1 and 5", migration)
+        self.assertIn("char_length(zero_vs_99_explanation) between 0 and 2000", migration)
+        self.assertIn("char_length(change_vs_stance_explanation) between 0 and 2000", migration)
+        self.assertIn("all h7 submissions, responses, identities, and invite rows remain unchanged", migration)
+        for table in (
+            "research.pilot_submissions",
+            "research.pilot_responses",
+            "private.participant_identity",
+            "private.pilot_invites",
+        ):
+            self.assertNotRegex(migration, rf"(?:delete\s+from|truncate\s+(?:table\s+)?)\s+{re.escape(table)}")
+        self.assertNotRegex(migration, r"update\s+research\.pilot_submissions")
+        self.assertNotRegex(migration, r"update\s+research\.pilot_responses")
+
     def test_pi_manual_test_auth_is_purpose_bound_and_nonidentifying(
         self,
     ) -> None:

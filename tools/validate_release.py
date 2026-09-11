@@ -120,7 +120,7 @@ def validate(
         )
         check(
             "r5_identity",
-            instrument.get("hosted_version") == "v260910-r5-public-3"
+            instrument.get("hosted_version") == "v260911-r5-public-4"
             and instrument.get("dataset_role") == "r3_content_response_pilot"
             and instrument.get("excluded_from_analysis") is True
             and instrument.get("analysis_exclusion_reason") == "r3_repilot_never_analysis",

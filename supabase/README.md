@@ -91,9 +91,9 @@ Submit request:
     }
   ],
   "feedback": {
-    "fatigue_1to5": 2,
-    "zero_vs_99_explanation": "required text",
-    "change_vs_stance_explanation": "required text",
+    "fatigue_1to5": null,
+    "zero_vs_99_explanation": "optional text or empty string",
+    "change_vs_stance_explanation": "optional text or empty string",
     "ui_error_note": "optional text"
   },
   "payload_sha256": "canonical payload digest",

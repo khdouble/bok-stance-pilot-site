@@ -38,6 +38,13 @@
     return result;
   }
 
+  function optionalInteger(value, field) {
+    if (value === undefined || value === null || value === "") {
+      return null;
+    }
+    return requiredInteger(value, field);
+  }
+
   function normalizeDigestBasis(raw) {
     var responses = raw.responses
       .map(function (response) {
@@ -87,7 +94,7 @@
         accepted_at: canonicalIso(raw.consent.accepted_at)
       },
       feedback: {
-        fatigue_1to5: requiredInteger(
+        fatigue_1to5: optionalInteger(
           raw.feedback.fatigue_1to5,
           "feedback.fatigue_1to5"
         ),

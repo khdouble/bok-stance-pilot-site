@@ -47,3 +47,21 @@ const qualityBasis = JSON.parse(JSON.stringify((await contract.finalizeDigest(wi
 assert.equal(qualityBasis.responses[11].item_quality_code, "TOO_OBVIOUS");
 assert.equal(qualityBasis.responses[11].item_quality_note, "");
 console.log("PASS frontend item-quality digest coverage");
+
+const withoutFeedback = structuredClone(fixture.raw_digest_input);
+withoutFeedback.feedback = {
+  fatigue_1to5: "",
+  zero_vs_99_explanation: "",
+  change_vs_stance_explanation: "",
+  ui_error_note: "",
+};
+const optionalFeedbackBasis = JSON.parse(
+  JSON.stringify((await contract.finalizeDigest(withoutFeedback)).basis),
+);
+assert.deepEqual(optionalFeedbackBasis.feedback, {
+  fatigue_1to5: null,
+  zero_vs_99_explanation: "",
+  change_vs_stance_explanation: "",
+  ui_error_note: "",
+});
+console.log("PASS frontend completely blank optional feedback");

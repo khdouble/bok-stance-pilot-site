@@ -94,6 +94,24 @@ Deno.test("submit validation normalizes identity and sorts positions", () => {
   assert(result.responses[11].display_position === 12);
 });
 
+Deno.test("submit validation accepts completely blank optional feedback", () => {
+  const body = validBody();
+  body.feedback = {
+    fatigue_1to5: null,
+    zero_vs_99_explanation: "",
+    change_vs_stance_explanation: "",
+    ui_error_note: "",
+  };
+  const result = validateSubmitRequest(
+    body,
+    "consent-v1",
+    Date.parse("2026-09-03T00:11:00.000Z"),
+  );
+  assert(result.feedback.fatigue_1to5 === null);
+  assert(result.feedback.zero_vs_99_explanation === "");
+  assert(result.feedback.change_vs_stance_explanation === "");
+});
+
 Deno.test("submit validation rejects anything other than exactly 12 unique positions", () => {
   const body = validBody();
   (body.responses as unknown[]).pop();

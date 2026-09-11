@@ -177,11 +177,12 @@
     </section>
 
     <section id="feedbackPanel" class="card" hidden>
-      <h2>사용성 피드백</h2>
+      <h2>사용성 피드백 (선택)</h2>
+      <p class="hint">아래 항목은 모두 선택사항입니다. 입력하지 않고 제출 전 확인으로 넘어가도 됩니다.</p>
 
-      <label for="fatigue">전체 피로도</label>
+      <label for="fatigue">전체 피로도 (선택)</label>
       <select id="fatigue">
-        <option value="">선택</option>
+        <option value="">선택하지 않음</option>
         <option value="1">1 매우 낮음</option>
         <option value="2">2 낮음</option>
         <option value="3">3 보통</option>
@@ -189,15 +190,17 @@
         <option value="5">5 매우 높음</option>
       </select>
 
-      <label for="zeroVs99">0과 99를 어떤 기준으로 구분했습니까?</label>
-      <textarea id="zeroVs99" rows="4" maxlength="1200"></textarea>
+      <label for="zeroVs99">0과 99를 어떤 기준으로 구분했습니까? (선택)</label>
+      <textarea id="zeroVs99" rows="4" maxlength="1200"
+                placeholder="응답하지 않아도 됩니다. 개인정보는 적지 마세요."></textarea>
 
       <label for="changeVsStance">
-        추가 정책변화와 현재 기조 유지를 어떤 기준으로 구분했습니까?
+        추가 정책변화와 현재 기조 유지를 어떤 기준으로 구분했습니까? (선택)
       </label>
-      <textarea id="changeVsStance" rows="4" maxlength="1200"></textarea>
+      <textarea id="changeVsStance" rows="4" maxlength="1200"
+                placeholder="응답하지 않아도 됩니다. 개인정보는 적지 마세요."></textarea>
 
-      <label for="uiError">불편하거나 작동하지 않은 부분이 있었습니까?</label>
+      <label for="uiError">불편하거나 작동하지 않은 부분이 있었습니까? (선택)</label>
       <textarea id="uiError" rows="3" maxlength="1200"
                 placeholder="없으면 비워 두어도 됩니다. 개인정보는 적지 마세요."></textarea>
 
@@ -211,8 +214,8 @@
     <section id="reviewPanel" class="card" hidden>
       <h2>제출 전 확인</h2>
       <p>
-        12문항과 피드백이 모두 입력되었습니다. 제출 후에는 수정할 수 없습니다.
-        이름과 전화번호는 응답과 분리해 저장됩니다.
+        12문항 입력이 완료되었습니다. 피드백은 선택사항입니다. 제출 후에는
+        수정할 수 없으며, 이름과 전화번호는 응답과 분리해 저장됩니다.
       </p>
       <dl class="summary">
         <div><dt>참가자 코드</dt><dd id="reviewRater"></dd></div>

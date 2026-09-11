@@ -154,6 +154,22 @@ class CollectHostedPilotTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "parent offline hash"):
                 MODULE.load_instrument(path)
 
+    def test_blank_optional_feedback_is_valid_and_preserved(self) -> None:
+        changed = copy.deepcopy(self.feedback)
+        changed[0]["fatigue_1to5"] = ""
+        changed[0]["zero_vs_99_explanation"] = ""
+        changed[0]["change_vs_stance_explanation"] = ""
+        changed[0]["ui_error_note"] = ""
+        validated = self.validate(feedback=changed)
+        self.assertEqual(validated["feedback"][0]["fatigue_1to5"], "")
+        self.assertEqual(validated["feedback"][0]["zero_vs_99_explanation"], "")
+
+    def test_nonblank_fatigue_still_requires_valid_scale_value(self) -> None:
+        changed = copy.deepcopy(self.feedback)
+        changed[0]["fatigue_1to5"] = "6"
+        with self.assertRaisesRegex(ValueError, "outside 1..5"):
+            self.validate(feedback=changed)
+
     def test_rejects_incomplete_or_tampered_assignments(self) -> None:
         with self.assertRaisesRegex(ValueError, "count times 12"):
             self.validate(responses=self.responses[:-1])

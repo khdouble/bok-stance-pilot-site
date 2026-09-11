@@ -347,7 +347,18 @@ assert.match(
   /error\.code === "ADMIN_CREDENTIAL_ALREADY_USED"/
 );
 assert.doesNotMatch(participantHtml, /data-pilot-mode="admin"|admin\.js/);
+for (const page of [html, participantHtml]) {
+  assert.match(page, /사용성 피드백 \(선택\)/);
+  assert.match(page, /모두 선택사항/);
+  assert.doesNotMatch(page, /피드백이 모두 입력/);
+}
+assert.match(
+  appSource,
+  /state\.feedback\.fatigue_1to5 !== null[\s\S]*!\[1, 2, 3, 4, 5\]\.includes/
+);
+assert.doesNotMatch(appSource, /피로도를 선택해 주세요/);
+assert.doesNotMatch(appSource, /구분 기준을 입력해 주세요/);
 
 console.log(
-  "PASS admin frontend contract, lifecycle, and static security tests=2"
+  "PASS admin frontend contract, lifecycle, optional-feedback, and static security tests=3"
 );

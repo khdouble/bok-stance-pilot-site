@@ -2,7 +2,7 @@ window.PILOT_SITE_CONFIG = Object.freeze({
   apiUrl: "https://mebisrsvasrzwkmsodsw.supabase.co/functions/v1/pilot-api",
   githubPagesOrigin: "https://khdouble.github.io",
   basePath: "/bok-stance-pilot-site/",
-  hostedVersion: "v260910-r5-public-3",
+  hostedVersion: "v260911-r5-public-4",
   sourceOfflineInstrumentSha256:
     "de96c00e9f95a9035cfc54a1bf18cc0d24b3465f7b5edc05cd9669a3fbfa7dee",
   fieldingEnabled: true,

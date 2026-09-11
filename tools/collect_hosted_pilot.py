@@ -17,7 +17,7 @@ from typing import Any
 
 
 OFFLINE_PARENT_SHA256 = "de96c00e9f95a9035cfc54a1bf18cc0d24b3465f7b5edc05cd9669a3fbfa7dee"
-HOSTED_VERSION = "v260910-r5-public-3"
+HOSTED_VERSION = "v260911-r5-public-4"
 RESPONSE_COUNT = 12
 UUID_V4 = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 HEX_64 = re.compile(r"^[0-9a-f]{64}$")
@@ -175,11 +175,10 @@ def validate_collection(
             raise ValueError(f"{submission_id}: session/submission timing is invalid")
         if session_active > (session_finish - session_start).total_seconds() + 5:
             raise ValueError(f"{submission_id}: active session time exceeds wall time")
-        strict_integer(feedback_row["fatigue_1to5"], "fatigue_1to5", 1, 5)
-        if not feedback_row["zero_vs_99_explanation"].strip() or not feedback_row["change_vs_stance_explanation"].strip():
-            raise ValueError(f"{submission_id}: required usability feedback is blank")
+        if feedback_row["fatigue_1to5"]:
+            strict_integer(feedback_row["fatigue_1to5"], "fatigue_1to5", 1, 5)
         if len(feedback_row["zero_vs_99_explanation"]) > 2000 or len(feedback_row["change_vs_stance_explanation"]) > 2000:
-            raise ValueError(f"{submission_id}: required usability feedback exceeds 2000 characters")
+            raise ValueError(f"{submission_id}: usability feedback exceeds 2000 characters")
         if len(feedback_row["ui_error_note"]) > 2000:
             raise ValueError(f"{submission_id}: ui_error_note exceeds 2000 characters")
 

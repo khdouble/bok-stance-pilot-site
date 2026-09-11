@@ -36,7 +36,7 @@ class DeploymentManifestTests(unittest.TestCase):
         instrument = json.loads(instrument_path.read_text(encoding="utf-8"))
         config = config_path.read_text(encoding="utf-8")
         config = config.replace(
-            'hostedVersion: "v260910-r5-public-3"',
+            'hostedVersion: "v260911-r5-public-4"',
             f'hostedVersion: "{build_public_instrument.HOSTED_VERSION}"',
         ).replace(
             'de96c00e9f95a9035cfc54a1bf18cc0d24b3465f7b5edc05cd9669a3fbfa7dee',
